@@ -1,0 +1,134 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = "mysql://root@localhost:3306/simagang"
+}
+
+// Enums
+enum UserRole {
+  intern
+  mentor
+  SDM
+  kadiv
+}
+
+enum InternshipStatus {
+  active
+  completed
+}
+
+enum PermissionType {
+  sakit
+  izin
+}
+
+enum PermissionStatus {
+  sent
+  review_mentor
+  review_kadiv
+  approved
+  rejected
+}
+
+enum PresenceStatus {
+  present
+  permission
+  sick
+  alpha
+}
+
+enum LogbookStatus {
+  draft
+  sent
+  review_mentor
+  review_kadiv
+  approved
+  rejected
+}
+
+// Models
+model User {
+  id           String        @id @default(uuid()) @db.Char(36)
+  full_name    String        @db.VarChar(100)
+  email        String        @unique @db.VarChar(100)
+  role         UserRole
+  position     String        @db.VarChar(50)
+  
+  // Relations
+  internship   Internship?
+  permissions  Permission[]
+  presences    Presence[]
+  logbooks     Logbook[]
+  
+  @@map("users")
+}
+
+model Internship {
+  id         BigInt           @id @default(autoincrement())
+  user_id    String           @unique @db.Char(36)
+  start_date DateTime         @db.Date
+  end_date   DateTime         @db.Date
+  status     InternshipStatus
+  
+  // Relations
+  user       User             @relation(fields: [user_id], references: [id])
+  
+  @@map("internships")
+}
+
+model Permission {
+  id              BigInt           @id @default(autoincrement())
+  user_id         String           @db.Char(36)
+  type            PermissionType
+  title           String           @db.VarChar(255)
+  reason          String           @db.Text
+  start_date      DateTime         @db.Date
+  end_date        DateTime         @db.Date
+  attachment_path String?          @db.VarChar(255)
+  status          PermissionStatus
+  
+  // Relations
+  user            User             @relation(fields: [user_id], references: [id])
+  presences       Presence[]
+  
+  @@map("permissions")
+}
+
+model Presence {
+  id            BigInt         @id @default(autoincrement())
+  user_id       String         @db.Char(36)
+  permission_id BigInt?
+  date          DateTime       @db.Date
+  check_in      DateTime?      @db.Time(0)
+  check_out     DateTime?      @db.Time(0)
+  location      String         @db.VarChar(255)
+  image_url     String         @db.VarChar(255)
+  status        PresenceStatus
+  
+  // Relations
+  user          User           @relation(fields: [user_id], references: [id])
+  permission    Permission?    @relation(fields: [permission_id], references: [id])
+  
+  @@map("presences")
+}
+
+model Logbook {
+  id              BigInt        @id @default(autoincrement())
+  user_id         String        @db.Char(36)
+  date            DateTime      @db.Date
+  title           String        @db.VarChar(255)
+  activity_detail String        @db.Text
+  result_output   String        @db.Text
+  status          LogbookStatus
+  
+  // Relations
+  user            User          @relation(fields: [user_id], references: [id])
+  
+  @@map("logbooks")
+}
