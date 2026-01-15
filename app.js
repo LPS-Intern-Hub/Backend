@@ -19,7 +19,7 @@ var app = express();
 
 // CORS Configuration
 app.use(cors({
-  origin: 'http://localhost:3000', // Next.js default port
+  origin: 'http://localhost:5173', // Vite frontend port
   credentials: true
 }));
 

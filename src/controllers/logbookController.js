@@ -55,7 +55,10 @@ exports.getLogbooks = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: logbooks
+      data: logbooks.map(log => ({
+        ...log,
+        id: Number(log.id)
+      }))
     });
 
   } catch (error) {
@@ -104,7 +107,10 @@ exports.getLogbookById = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: logbook
+      data: {
+        ...logbook,
+        id: Number(logbook.id)
+      }
     });
 
   } catch (error) {
@@ -186,7 +192,10 @@ exports.createLogbook = async (req, res) => {
     res.status(201).json({
       success: true,
       message: `Logbook berhasil ${logbookStatus === 'draft' ? 'disimpan sebagai draft' : 'dikirim'}`,
-      data: logbook
+      data: {
+        ...logbook,
+        id: Number(logbook.id)
+      }
     });
 
   } catch (error) {

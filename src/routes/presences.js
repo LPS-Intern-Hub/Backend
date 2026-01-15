@@ -49,7 +49,6 @@ const uploadPresence = require('../middlewares/uploadPresence');
 router.post(
   '/check-in',
   auth,
-  authorize('intern'),
   uploadPresence.single('image'),
   [
     body('location')
@@ -70,7 +69,6 @@ router.post(
 router.post(
   '/check-out',
   auth,
-  authorize('intern'),
   presenceController.checkOut
 );
 

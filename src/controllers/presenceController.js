@@ -24,16 +24,26 @@ exports.checkIn = async (req, res) => {
 
     const userId = req.user.id;
     const { location } = req.body;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const todayString = now.toISOString().split('T')[0];
 
-    // Check if already checked in today
-    const existingPresence = await prisma.presences.findFirst({
+    // Check if already checked in today - get latest presence
+    const latestPresence = await prisma.presences.findFirst({
       where: {
-        user_id: userId,
-        date: today
+        user_id: userId
+      },
+      orderBy: {
+        date: 'desc'
       }
     });
+
+    let existingPresence = null;
+    if (latestPresence) {
+      const latestDateString = new Date(latestPresence.date).toISOString().split('T')[0];
+      if (latestDateString === todayString) {
+        existingPresence = latestPresence;
+      }
+    }
 
     if (existingPresence && existingPresence.check_in) {
       if (req.file) {
@@ -45,16 +55,19 @@ exports.checkIn = async (req, res) => {
       });
     }
 
+    // Create date object for today in local timezone
+    const todayDate = new Date(todayString + 'T00:00:00');
+
     // Check if user has permission for today
     const permission = await prisma.permissions.findFirst({
       where: {
         user_id: userId,
         status: 'approved',
         start_date: {
-          lte: today
+          lte: todayDate
         },
         end_date: {
-          gte: today
+          gte: todayDate
         }
       }
     });
@@ -96,7 +109,7 @@ exports.checkIn = async (req, res) => {
       presence = await prisma.presences.create({
         data: {
           user_id: userId,
-          date: today,
+          date: todayDate,
           check_in: currentTime,
           location,
           image_url: imageUrl,
@@ -109,7 +122,11 @@ exports.checkIn = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Absen masuk berhasil',
-      data: presence
+      data: {
+        ...presence,
+        id: Number(presence.id),
+        permission_id: presence.permission_id ? Number(presence.permission_id) : null
+      }
     });
 
   } catch (error) {
@@ -132,18 +149,46 @@ exports.checkIn = async (req, res) => {
 exports.checkOut = async (req, res) => {
   try {
     const userId = req.user.id;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    
+    // Get today's date string in YYYY-MM-DD format (local timezone)
+    const now = new Date();
+    const todayString = now.toISOString().split('T')[0]; // "2026-01-15"
 
-    // Find today's presence
+    console.log('=== CHECK OUT DEBUG ===');
+    console.log('User ID:', userId);
+    console.log('Current time:', now);
+    console.log('Today string:', todayString);
+
+    // Find today's presence - search by user and order by date desc, take first
     const presence = await prisma.presences.findFirst({
       where: {
-        user_id: userId,
-        date: today
+        user_id: userId
+      },
+      orderBy: {
+        date: 'desc'
       }
     });
 
+    console.log('Found latest presence:', presence);
+
     if (!presence) {
+      console.log('ERROR: No presence found');
+      return res.status(400).json({
+        success: false,
+        message: 'Anda belum melakukan absen masuk hari ini'
+      });
+    }
+
+    // Check if presence is from today by comparing date strings
+    const presenceDate = new Date(presence.date);
+    const presenceDateString = presenceDate.toISOString().split('T')[0];
+    
+    console.log('Presence date:', presenceDate);
+    console.log('Presence date string:', presenceDateString);
+    console.log('Dates match:', presenceDateString === todayString);
+
+    if (presenceDateString !== todayString) {
+      console.log('ERROR: Latest presence is not from today');
       return res.status(400).json({
         success: false,
         message: 'Anda belum melakukan absen masuk hari ini'
@@ -151,6 +196,7 @@ exports.checkOut = async (req, res) => {
     }
 
     if (!presence.check_in) {
+      console.log('ERROR: check_in is null');
       return res.status(400).json({
         success: false,
         message: 'Anda belum melakukan absen masuk hari ini'
@@ -158,6 +204,7 @@ exports.checkOut = async (req, res) => {
     }
 
     if (presence.check_out) {
+      console.log('ERROR: Already checked out at', presence.check_out);
       return res.status(400).json({
         success: false,
         message: 'Anda sudah melakukan absen pulang hari ini'
@@ -165,6 +212,7 @@ exports.checkOut = async (req, res) => {
     }
 
     const currentTime = new Date();
+    console.log('Updating check_out to:', currentTime);
 
     // Update check-out time
     const updatedPresence = await prisma.presences.update({
@@ -174,10 +222,16 @@ exports.checkOut = async (req, res) => {
       }
     });
 
+    console.log('Updated successfully:', updatedPresence);
+
     res.status(200).json({
       success: true,
       message: 'Absen pulang berhasil',
-      data: updatedPresence
+      data: {
+        ...updatedPresence,
+        id: Number(updatedPresence.id),
+        permission_id: updatedPresence.permission_id ? Number(updatedPresence.permission_id) : null
+      }
     });
 
   } catch (error) {
@@ -197,13 +251,16 @@ exports.checkOut = async (req, res) => {
 exports.getTodayPresence = async (req, res) => {
   try {
     const userId = req.user.id;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const todayString = now.toISOString().split('T')[0];
 
-    const presence = await prisma.presences.findFirst({
+    // Get latest presence and check if it's from today
+    const latestPresence = await prisma.presences.findFirst({
       where: {
-        user_id: userId,
-        date: today
+        user_id: userId
+      },
+      orderBy: {
+        date: 'desc'
       },
       include: {
         permission: {
@@ -217,9 +274,25 @@ exports.getTodayPresence = async (req, res) => {
       }
     });
 
+    let presence = null;
+    if (latestPresence) {
+      const latestDateString = new Date(latestPresence.date).toISOString().split('T')[0];
+      if (latestDateString === todayString) {
+        presence = latestPresence;
+      }
+    }
+
     res.status(200).json({
       success: true,
-      data: presence
+      data: presence ? {
+        ...presence,
+        id: Number(presence.id),
+        permission_id: presence.permission_id ? Number(presence.permission_id) : null,
+        permission: presence.permission ? {
+          ...presence.permission,
+          id: Number(presence.permission.id)
+        } : null
+      } : null
     });
 
   } catch (error) {

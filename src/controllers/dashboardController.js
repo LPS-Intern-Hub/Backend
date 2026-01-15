@@ -131,6 +131,17 @@ exports.getDashboard = async (req, res) => {
       }
     });
 
+    // Convert BigInt to Number for JSON serialization
+    const formatPresences = recentPresences.map(p => ({
+      ...p,
+      id: Number(p.id)
+    }));
+
+    const formatLogbooks = recentLogbooks.map(l => ({
+      ...l,
+      id: Number(l.id)
+    }));
+
     res.status(200).json({
       success: true,
       data: {
@@ -143,8 +154,8 @@ exports.getDashboard = async (req, res) => {
         internship_progress: progressData,
         attendance_this_month: attendanceCount,
         logbook_filled: logbookCount,
-        recent_presences: recentPresences,
-        recent_logbooks: recentLogbooks
+        recent_presences: formatPresences,
+        recent_logbooks: formatLogbooks
       }
     });
 

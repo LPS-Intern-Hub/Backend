@@ -57,6 +57,7 @@ exports.getPermissions = async (req, res) => {
       
       return {
         ...permission,
+        id: Number(permission.id), // Convert BigInt to Number
         duration_days: durationDays
       };
     });
@@ -119,6 +120,7 @@ exports.getPermissionById = async (req, res) => {
       success: true,
       data: {
         ...permission,
+        id: Number(permission.id), // Convert BigInt to Number
         duration_days: durationDays
       }
     });
@@ -199,7 +201,10 @@ exports.createPermission = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Perizinan berhasil diajukan',
-      data: permission
+      data: {
+        ...permission,
+        id: Number(permission.id) // Convert BigInt to Number
+      }
     });
 
   } catch (error) {
