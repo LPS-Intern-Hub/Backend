@@ -62,54 +62,5 @@ const { auth } = require('../middlewares/auth');
  */
 router.get('/', auth, dashboardController.getDashboard);
 
-/**
- * @swagger
- * /dashboard/stats:
- *   get:
- *     summary: Get dashboard statistics
- *     description: Retrieve aggregated statistics including attendance by status and logbook by status
- *     tags: [Dashboard]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Statistics retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     attendance_stats:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           status:
- *                             type: string
- *                           _count:
- *                             type: integer
- *                     logbook_stats:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           status:
- *                             type: string
- *                           _count:
- *                             type: integer
- *       401:
- *         description: Unauthorized
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- */
-router.get('/stats', auth, dashboardController.getDashboardStats);
-
 module.exports = router;
+

@@ -1,4 +1,3 @@
-// cSpell:words autoincrement kadiv sakit izin presences logbooks internships
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,88 +7,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model users {
-  id          String        @id @default(uuid()) @db.Char(36)
-  full_name   String        @db.VarChar(100)
-  email       String        @unique @db.VarChar(100)
-  role        UserRole
-  position    String        @db.VarChar(50)
-  created_at  DateTime      @default(now())
-  password    String        @db.VarChar(255)
-  updated_at  DateTime      @updatedAt
-  internship  internships?
-  logbooks    logbooks[]
-  permissions permissions[]
-  presences   presences[]
-}
-
-model internships {
-  id         BigInt           @id @default(autoincrement())
-  user_id    String           @unique @db.Char(36)
-  start_date DateTime         @db.Date
-  end_date   DateTime         @db.Date
-  status     InternshipStatus
-  user       users            @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  @@index([user_id])
-}
-
-model permissions {
-  id              BigInt           @id @default(autoincrement())
-  user_id         String           @db.Char(36)
-  type            PermissionType
-  title           String           @db.VarChar(255)
-  reason          String           @db.Text
-  start_date      DateTime         @db.Date
-  end_date        DateTime         @db.Date
-  attachment_path String?          @db.VarChar(255)
-  status          PermissionStatus @default(sent)
-  user            users            @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  presences       presences[]
-
-  @@index([user_id])
-}
-
-model presences {
-  id            BigInt         @id @default(autoincrement())
-  user_id       String         @db.Char(36)
-  permission_id BigInt?
-  date          DateTime       @db.Date
-  check_in      DateTime?      @db.Time(0)
-  check_out     DateTime?      @db.Time(0)
-  location      String         @db.VarChar(255)
-  image_url     String         @db.VarChar(255)
-  status        PresenceStatus
-  permission    permissions?   @relation(fields: [permission_id], references: [id])
-  user          users          @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  @@index([user_id])
-  @@index([permission_id])
-}
-
-model logbooks {
-  id              BigInt        @id @default(autoincrement())
-  user_id         String        @db.Char(36)
-  date            DateTime      @db.Date
-  title           String        @db.VarChar(255)
-  activity_detail String        @db.Text
-  result_output   String        @db.Text
-  status          LogbookStatus @default(draft)
-  user            users         @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  @@index([user_id])
-}
-
 enum UserRole {
-  intern
+  admin
   mentor
-  SDM
   kadiv
+  intern
 }
 
 enum InternshipStatus {
-  active
-  completed
+  aktif
+  selesai
+  diberhentikan
 }
 
 enum PermissionType {
@@ -98,18 +26,16 @@ enum PermissionType {
 }
 
 enum PermissionStatus {
-  sent
-  review_mentor
-  review_kadiv
+  pending
   approved
   rejected
 }
 
-enum PresenceStatus {
-  present
-  permission
-  sick
-  alpha
+enum PresensiStatus {
+  hadir
+  izin
+  alfa
+  terlambat
 }
 
 enum LogbookStatus {
@@ -119,4 +45,91 @@ enum LogbookStatus {
   review_kadiv
   approved
   rejected
+}
+
+model Users {
+  id_users   Int      @id @default(autoincrement())
+  full_name  String   @db.VarChar(100)
+  email      String   @unique @db.VarChar(100)
+  password   String   @db.VarChar(255)
+  role       UserRole
+  position   String?  @db.VarChar(100)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  internships          Internships[]
+  approved_permissions Permissions[] @relation("PermissionApprover")
+  approved_logbooks    Logbooks[]    @relation("LogbookApprover")
+
+  @@map("users")
+}
+
+model Internships {
+  id_internships Int      @id @default(autoincrement())
+  id_users       Int
+  start_date     DateTime @db.Date
+  end_date       DateTime @db.Date
+  status         InternshipStatus
+
+  user        Users        @relation(fields: [id_users], references: [id_users], onDelete: Cascade)
+  presensi    Presensi[]
+  permissions Permissions[]
+  logbooks    Logbooks[]
+
+  @@map("internships")
+}
+
+model Permissions {
+  id_permissions Int              @id @default(autoincrement())
+  id_internships Int
+  type           PermissionType
+  title          String           @db.VarChar(150)
+  reason         String?          @db.Text
+  start_date     DateTime         @db.Date
+  end_date       DateTime         @db.Date
+  status         PermissionStatus @default(pending)
+  approved_by    Int?
+  approved_at    DateTime?
+
+  internship Internships @relation(fields: [id_internships], references: [id_internships], onDelete: Cascade)
+  approver   Users?       @relation("PermissionApprover", fields: [approved_by], references: [id_users], onDelete: SetNull)
+  presensi   Presensi[]
+
+  @@map("permissions")
+}
+
+model Presensi {
+  id_presensi    Int            @id @default(autoincrement())
+  id_internships Int
+  id_permission  Int?
+  date           DateTime       @db.Date
+  check_in       DateTime?       @db.Time
+  check_out      DateTime?       @db.Time
+  latitude       Decimal        @db.Decimal(10,8)
+  longitude      Decimal        @db.Decimal(11,8)
+  location       String?        @db.VarChar(255)
+  image_url      String?        @db.Text
+  status         PresensiStatus
+
+  internship Internships @relation(fields: [id_internships], references: [id_internships], onDelete: Cascade)
+  permission Permissions? @relation(fields: [id_permission], references: [id_permissions], onDelete: SetNull)
+
+  @@map("presensi")
+}
+
+model Logbooks {
+  id_logbooks     Int           @id @default(autoincrement())
+  id_internships  Int
+  date            DateTime      @db.Date
+  title           String        @db.VarChar(150)
+  activity_detail String        @db.Text
+  result_output   String?       @db.Text
+  status          LogbookStatus @default(draft)
+  approved_by     Int?
+  approved_at     DateTime?
+
+  internship Internships @relation(fields: [id_internships], references: [id_internships], onDelete: Cascade)
+  approver   Users?       @relation("LogbookApprover", fields: [approved_by], references: [id_users], onDelete: SetNull)
+
+  @@map("logbooks")
 }

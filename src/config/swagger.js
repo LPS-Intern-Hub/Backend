@@ -12,13 +12,19 @@ API Documentation for Simagang - Internship Management System
 ## Available Endpoints:
 
 ### Authentication
-- POST /auth/register - Register new user
 - POST /auth/login - Login user
 - GET /auth/me - Get current user profile
 
+### Internships
+- GET /internships/me - Get current user's internship
+- GET /internships - Get all internships (Admin only)
+- GET /internships/{id} - Get internship by ID (Admin only)
+- POST /internships - Create new internship (Admin only)
+- PUT /internships/{id} - Update internship (Admin only)
+- DELETE /internships/{id} - Delete internship (Admin only)
+
 ### Dashboard
 - GET /dashboard - Get dashboard data (progress, attendance, logbook)
-- GET /dashboard/stats - Get statistics summary
 
 ### Permissions (Perizinan)
 - GET /permissions - Get all permissions (filter by status, type)
@@ -33,17 +39,15 @@ API Documentation for Simagang - Internship Management System
 - POST /presences/check-out - Check-out
 - GET /presences/today - Get today's presence
 - GET /presences - Get all presences (filter by month, year, status)
-- GET /presences/{id} - Get presence by ID
-- GET /presences/stats - Get presence statistics
+
 
 ### Logbooks
 - GET /logbooks - Get all logbooks (filter by month, year, status)
-- GET /logbooks/{id} - Get logbook by ID
 - POST /logbooks - Create new logbook (draft/sent)
 - PUT /logbooks/{id} - Update logbook
 - DELETE /logbooks/{id} - Delete logbook
 - PUT /logbooks/{id}/review - Approve/reject logbook (mentor/kadiv)
-- GET /logbooks/stats - Get logbook statistics
+
       `,
       contact: {
         name: 'API Support',

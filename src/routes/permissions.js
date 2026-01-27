@@ -45,10 +45,40 @@ const upload = require('../middlewares/upload');
  *               properties:
  *                 success:
  *                   type: boolean
+ *                   example: true
  *                 data:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/Permission'
+ *                     type: object
+ *                     properties:
+ *                       id_permissions:
+ *                         type: integer
+ *                         example: 1
+ *                       type:
+ *                         type: string
+ *                         enum: [sakit, izin]
+ *                         example: "sakit"
+ *                       title:
+ *                         type: string
+ *                         example: "Izin Sakit"
+ *                       reason:
+ *                         type: string
+ *                         example: "Demam tinggi dan perlu istirahat"
+ *                       start_date:
+ *                         type: string
+ *                         format: date
+ *                         example: "2026-01-27"
+ *                       end_date:
+ *                         type: string
+ *                         format: date
+ *                         example: "2026-01-29"
+ *                       status:
+ *                         type: string
+ *                         enum: [pending, review_mentor, review_kadiv, approved, rejected]
+ *                         example: "pending"
+ *                       duration_days:
+ *                         type: integer
+ *                         example: 3
  */
 router.get('/', auth, permissionController.getPermissions);
 
@@ -77,8 +107,38 @@ router.get('/', auth, permissionController.getPermissions);
  *               properties:
  *                 success:
  *                   type: boolean
+ *                   example: true
  *                 data:
- *                   $ref: '#/components/schemas/Permission'
+ *                   type: object
+ *                   properties:
+ *                     id_permissions:
+ *                       type: integer
+ *                       example: 1
+ *                     type:
+ *                       type: string
+ *                       example: "sakit"
+ *                     title:
+ *                       type: string
+ *                       example: "Izin Sakit"
+ *                     reason:
+ *                       type: string
+ *                       example: "Demam tinggi"
+ *                     start_date:
+ *                       type: string
+ *                       format: date
+ *                     end_date:
+ *                       type: string
+ *                       format: date
+ *                     attachment_url:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "/uploads/permissions/file.pdf"
+ *                     status:
+ *                       type: string
+ *                       example: "pending"
+ *                     duration_days:
+ *                       type: integer
+ *                       example: 3
  *       404:
  *         description: Permission not found
  */
@@ -101,7 +161,6 @@ router.get('/:id', auth, permissionController.getPermissionById);
  *             type: object
  *             required:
  *               - type
- *               - title
  *               - reason
  *               - start_date
  *               - end_date
@@ -110,23 +169,22 @@ router.get('/:id', auth, permissionController.getPermissionById);
  *                 type: string
  *                 enum: [sakit, izin]
  *                 description: Type of permission
- *               title:
- *                 type: string
- *                 minLength: 3
- *                 maxLength: 255
- *                 description: Permission title
+ *                 example: sakit
  *               reason:
  *                 type: string
  *                 minLength: 10
  *                 description: Reason for permission
+ *                 example: "Demam tinggi dan perlu istirahat total"
  *               start_date:
  *                 type: string
  *                 format: date
  *                 description: Start date (YYYY-MM-DD)
+ *                 example: "2026-01-27"
  *               end_date:
  *                 type: string
  *                 format: date
  *                 description: End date (YYYY-MM-DD)
+ *                 example: "2026-01-29"
  *               attachment:
  *                 type: string
  *                 format: binary
@@ -134,6 +192,47 @@ router.get('/:id', auth, permissionController.getPermissionById);
  *     responses:
  *       201:
  *         description: Permission created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Perizinan berhasil diajukan"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id_permissions:
+ *                       type: integer
+ *                       example: 1
+ *                     type:
+ *                       type: string
+ *                       example: "sakit"
+ *                     title:
+ *                       type: string
+ *                       example: "Izin Sakit"
+ *                     reason:
+ *                       type: string
+ *                       example: "Demam tinggi dan perlu istirahat"
+ *                     start_date:
+ *                       type: string
+ *                       format: date
+ *                       example: "2026-01-27"
+ *                     end_date:
+ *                       type: string
+ *                       format: date
+ *                       example: "2026-01-29"
+ *                     attachment_url:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "/uploads/permissions/bukti-sakit.pdf"
+ *                     status:
+ *                       type: string
+ *                       example: "pending"
  *       400:
  *         description: Validation error
  */
@@ -145,12 +244,6 @@ router.post(
     body('type')
       .isIn(['sakit', 'izin'])
       .withMessage('Jenis perizinan harus sakit atau izin'),
-    body('title')
-      .trim()
-      .notEmpty()
-      .withMessage('Judul harus diisi')
-      .isLength({ min: 3, max: 255 })
-      .withMessage('Judul harus antara 3-255 karakter'),
     body('reason')
       .trim()
       .notEmpty()
@@ -202,6 +295,19 @@ router.post(
  *     responses:
  *       200:
  *         description: Permission updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Perizinan berhasil diperbarui"
+ *                 data:
+ *                   type: object
  *       400:
  *         description: Permission cannot be updated (already processed)
  *       404:
@@ -244,6 +350,17 @@ router.put(
  *     responses:
  *       200:
  *         description: Permission deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Perizinan berhasil dihapus"
  *       400:
  *         description: Permission cannot be deleted (already processed)
  *       404:
@@ -282,6 +399,30 @@ router.delete('/:id', auth, permissionController.deletePermission);
  *     responses:
  *       200:
  *         description: Permission reviewed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Perizinan berhasil disetujui"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id_permissions:
+ *                       type: integer
+ *                     status:
+ *                       type: string
+ *                       example: "approved"
+ *                     approved_by:
+ *                       type: integer
+ *                     approved_at:
+ *                       type: string
+ *                       format: date-time
  *       400:
  *         description: Invalid action or permission not ready for review
  *       403:

@@ -9,84 +9,13 @@ const prisma = require('../utils/prisma');
  */
 const generateToken = (userId) => {
   return jwt.sign(
-    { id: userId },
+    { id_users: userId },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN }
   );
 };
 
-/**
- * Register new user
- * POST /api/auth/register
- */
-exports.register = async (req, res) => {
-  try {
-    // Validation
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array()
-      });
-    }
 
-    const { full_name, email, password, role, position } = req.body;
-
-    // Check if user already exists
-    const existingUser = await prisma.users.findUnique({
-      where: { email }
-    });
-
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email sudah terdaftar'
-      });
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user
-    const user = await prisma.users.create({
-      data: {
-        full_name,
-        email,
-        password: hashedPassword,
-        role: role || 'intern',
-        position
-      },
-      select: {
-        id: true,
-        full_name: true,
-        email: true,
-        role: true,
-        position: true,
-        created_at: true
-      }
-    });
-
-    // Generate token
-    const token = generateToken(user.id);
-
-    res.status(201).json({
-      success: true,
-      message: 'User berhasil didaftarkan',
-      data: {
-        user,
-        token
-      }
-    });
-
-  } catch (error) {
-    console.error('Register error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Terjadi kesalahan saat mendaftarkan user',
-      error: error.message
-    });
-  }
-};
 
 /**
  * Login user
@@ -128,7 +57,7 @@ exports.login = async (req, res) => {
     }
 
     // Generate token
-    const token = generateToken(user.id);
+    const token = generateToken(user.id_users);
 
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
@@ -159,9 +88,9 @@ exports.login = async (req, res) => {
 exports.getProfile = async (req, res) => {
   try {
     const user = await prisma.users.findUnique({
-      where: { id: req.user.id },
+      where: { id_users: req.user.id_users },
       select: {
-        id: true,
+        id_users: true,
         full_name: true,
         email: true,
         role: true,

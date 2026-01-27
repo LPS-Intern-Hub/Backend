@@ -1,4 +1,4 @@
-// cSpell:words Terjadi kesalahan saat mengambil tidak ditemukan harus untuk tanggal sudah berhasil disimpan sebagai dikirim atau membuat diproses dapat diubah dihapus menghapus kadiv sesuai direview Gunakan disetujui ditolak mereview statistik diperbarui memperbarui
+// cSpell:words Terjadi kesalahan saat mengambil tidak ditemukan harus untuk tanggal sudah berhasil disimpan sebagai dikirim atau membuat diproses dapat diubah dihapus menghapus kadiv sesuai direview Gunakan disetujui ditolak mereview statistik diperbarui memperbarui magang
 const prisma = require('../utils/prisma');
 const { validationResult } = require('express-validator');
 
@@ -8,26 +8,35 @@ const { validationResult } = require('express-validator');
  */
 exports.getLogbooks = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const { status, month, year } = req.query;
+    const userId = req.user.id_users;
+    const { month, year, status } = req.query;
 
-    // Build filter
-    const where = { user_id: userId };
+    // Get internship first
+    const internship = await prisma.internships.findFirst({
+      where: { id_users: userId }
+    });
 
-    if (status) {
-      where.status = status;
+    if (!internship) {
+      return res.status(404).json({
+        success: false,
+        message: 'Data magang tidak ditemukan'
+      });
     }
 
-    // Filter by month and year
+    const where = { id_internships: internship.id_internships };
+
+    // Filter by date if provided
     if (month && year) {
       const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
       const endDate = new Date(parseInt(year), parseInt(month), 0);
-      endDate.setHours(23, 59, 59, 999);
-
       where.date = {
         gte: startDate,
         lte: endDate
       };
+    }
+
+    if (status) {
+      where.status = status;
     }
 
     const logbooks = await prisma.logbooks.findMany({
@@ -36,18 +45,25 @@ exports.getLogbooks = async (req, res) => {
         date: 'desc'
       },
       select: {
-        id: true,
+        id_logbooks: true,
         date: true,
         title: true,
         activity_detail: true,
         result_output: true,
         status: true,
-        user: {
+        approved_by: true,
+        approved_at: true,
+        internship: {
           select: {
-            id: true,
-            full_name: true,
-            email: true,
-            position: true
+            id_internships: true,
+            user: {
+              select: {
+                id_users: true,
+                full_name: true,
+                email: true,
+                position: true
+              }
+            }
           }
         }
       }
@@ -55,10 +71,7 @@ exports.getLogbooks = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: logbooks.map(log => ({
-        ...log,
-        id: Number(log.id)
-      }))
+      data: logbooks
     });
 
   } catch (error) {
@@ -78,20 +91,43 @@ exports.getLogbooks = async (req, res) => {
 exports.getLogbookById = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.id_users;
+
+    // Get internship first
+    const internship = await prisma.internships.findFirst({
+      where: { id_users: userId }
+    });
+
+    if (!internship) {
+      return res.status(404).json({
+        success: false,
+        message: 'Data magang tidak ditemukan'
+      });
+    }
 
     const logbook = await prisma.logbooks.findFirst({
       where: {
-        id: parseInt(id),
-        user_id: userId
+        id_logbooks: parseInt(id),
+        id_internships: internship.id_internships
       },
       include: {
-        user: {
+        internship: {
+          include: {
+            user: {
+              select: {
+                id_users: true,
+                full_name: true,
+                email: true,
+                position: true,
+                role: true
+              }
+            }
+          }
+        },
+        approver: {
           select: {
-            id: true,
+            id_users: true,
             full_name: true,
-            email: true,
-            position: true,
             role: true
           }
         }
@@ -107,10 +143,7 @@ exports.getLogbookById = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: {
-        ...logbook,
-        id: Number(logbook.id)
-      }
+      data: logbook
     });
 
   } catch (error) {
@@ -138,52 +171,42 @@ exports.createLogbook = async (req, res) => {
       });
     }
 
-    const userId = req.user.id;
+    const userId = req.user.id_users;
     const { date, title, activity_detail, result_output, status } = req.body;
 
-    // Validate status
-    const validStatuses = ['draft', 'sent'];
-    const logbookStatus = status || 'draft';
-
-    if (!validStatuses.includes(logbookStatus)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Status harus draft atau sent'
-      });
-    }
-
-    // Check if logbook for this date already exists
-    const existingLogbook = await prisma.logbooks.findFirst({
-      where: {
-        user_id: userId,
-        date: new Date(date)
-      }
+    // Get internship first
+    const internship = await prisma.internships.findFirst({
+      where: { id_users: userId }
     });
 
-    if (existingLogbook) {
-      return res.status(400).json({
+    if (!internship) {
+      return res.status(404).json({
         success: false,
-        message: 'Logbook untuk tanggal ini sudah ada'
+        message: 'Data magang tidak ditemukan'
       });
     }
 
     // Create logbook
     const logbook = await prisma.logbooks.create({
       data: {
-        user_id: userId,
+        id_internships: internship.id_internships,
         date: new Date(date),
         title,
         activity_detail,
         result_output,
-        status: logbookStatus
+        status: status || 'draft'
       },
       include: {
-        user: {
-          select: {
-            id: true,
-            full_name: true,
-            email: true,
-            position: true
+        internship: {
+          include: {
+            user: {
+              select: {
+                id_users: true,
+                full_name: true,
+                email: true,
+                position: true
+              }
+            }
           }
         }
       }
@@ -191,11 +214,8 @@ exports.createLogbook = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: `Logbook berhasil ${logbookStatus === 'draft' ? 'disimpan sebagai draft' : 'dikirim'}`,
-      data: {
-        ...logbook,
-        id: Number(logbook.id)
-      }
+      message: `Logbook berhasil disimpan sebagai ${status === 'sent' ? 'dikirim' : 'draft'}`,
+      data: logbook
     });
 
   } catch (error) {
@@ -215,14 +235,26 @@ exports.createLogbook = async (req, res) => {
 exports.updateLogbook = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.id_users;
     const { date, title, activity_detail, result_output, status } = req.body;
 
-    // Check if logbook exists and belongs to user
+    // Get internship first
+    const internship = await prisma.internships.findFirst({
+      where: { id_users: userId }
+    });
+
+    if (!internship) {
+      return res.status(404).json({
+        success: false,
+        message: 'Data magang tidak ditemukan'
+      });
+    }
+
+    // Check if logbook exists
     const existingLogbook = await prisma.logbooks.findFirst({
       where: {
-        id: parseInt(id),
-        user_id: userId
+        id_logbooks: parseInt(id),
+        id_internships: internship.id_internships
       }
     });
 
@@ -233,8 +265,8 @@ exports.updateLogbook = async (req, res) => {
       });
     }
 
-    // Only allow update if status is 'draft', 'sent', or 'rejected'
-    if (!['draft', 'sent', 'rejected'].includes(existingLogbook.status)) {
+    // Only allow update if not yet approved
+    if (['approved', 'review_kadiv'].includes(existingLogbook.status)) {
       return res.status(400).json({
         success: false,
         message: 'Logbook yang sudah diproses tidak dapat diubah'
@@ -246,35 +278,30 @@ exports.updateLogbook = async (req, res) => {
     if (date) updateData.date = new Date(date);
     if (title) updateData.title = title;
     if (activity_detail) updateData.activity_detail = activity_detail;
-    if (result_output) updateData.result_output = result_output;
-
-    // Handle status update
+    if (result_output !== undefined) updateData.result_output = result_output;
     if (status) {
-      const validStatuses = ['draft', 'sent'];
-      if (!validStatuses.includes(status)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Status harus draft atau sent'
-        });
-      }
       updateData.status = status;
-    }
-
-    // If updating from rejected, reset to sent
-    if (existingLogbook.status === 'rejected' && Object.keys(updateData).length > 0) {
-      updateData.status = status || 'sent';
+      // Reset approval if status changed
+      if (status === 'draft' || status === 'sent') {
+        updateData.approved_by = null;
+        updateData.approved_at = null;
+      }
     }
 
     const updatedLogbook = await prisma.logbooks.update({
-      where: { id: parseInt(id) },
+      where: { id_logbooks: parseInt(id) },
       data: updateData,
       include: {
-        user: {
-          select: {
-            id: true,
-            full_name: true,
-            email: true,
-            position: true
+        internship: {
+          include: {
+            user: {
+              select: {
+                id_users: true,
+                full_name: true,
+                email: true,
+                position: true
+              }
+            }
           }
         }
       }
@@ -303,13 +330,25 @@ exports.updateLogbook = async (req, res) => {
 exports.deleteLogbook = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.id_users;
 
-    // Check if logbook exists and belongs to user
+    // Get internship first
+    const internship = await prisma.internships.findFirst({
+      where: { id_users: userId }
+    });
+
+    if (!internship) {
+      return res.status(404).json({
+        success: false,
+        message: 'Data magang tidak ditemukan'
+      });
+    }
+
+    // Check if logbook exists
     const logbook = await prisma.logbooks.findFirst({
       where: {
-        id: parseInt(id),
-        user_id: userId
+        id_logbooks: parseInt(id),
+        id_internships: internship.id_internships
       }
     });
 
@@ -320,8 +359,8 @@ exports.deleteLogbook = async (req, res) => {
       });
     }
 
-    // Only allow delete if status is 'draft', 'sent', or 'rejected'
-    if (!['draft', 'sent', 'rejected'].includes(logbook.status)) {
+    // Only allow delete if status is draft or sent
+    if (!['draft', 'sent'].includes(logbook.status)) {
       return res.status(400).json({
         success: false,
         message: 'Logbook yang sudah diproses tidak dapat dihapus'
@@ -330,7 +369,7 @@ exports.deleteLogbook = async (req, res) => {
 
     // Delete logbook
     await prisma.logbooks.delete({
-      where: { id: parseInt(id) }
+      where: { id_logbooks: parseInt(id) }
     });
 
     res.status(200).json({
@@ -349,18 +388,19 @@ exports.deleteLogbook = async (req, res) => {
 };
 
 /**
- * Review logbook (for mentor/kadiv)
+ * Review logbook (for mentor/kadiv/admin)
  * PUT /api/logbooks/:id/review
  */
 exports.reviewLogbook = async (req, res) => {
   try {
     const { id } = req.params;
     const { action } = req.body; // 'approve' or 'reject'
+    const reviewerId = req.user.id_users;
     const reviewerRole = req.user.role;
 
     // Check if logbook exists
     const logbook = await prisma.logbooks.findUnique({
-      where: { id: parseInt(id) }
+      where: { id_logbooks: parseInt(id) }
     });
 
     if (!logbook) {
@@ -370,18 +410,21 @@ exports.reviewLogbook = async (req, res) => {
       });
     }
 
-    // Determine next status based on current status and reviewer role
+    // Determine new status based on current status and action
     let newStatus;
 
     if (action === 'reject') {
       newStatus = 'rejected';
     } else if (action === 'approve') {
-      if (reviewerRole === 'mentor' && logbook.status === 'sent') {
+      if (logbook.status === 'sent' && reviewerRole === 'mentor') {
         newStatus = 'review_kadiv';
-      } else if (reviewerRole === 'kadiv' && logbook.status === 'review_kadiv') {
+      } else if (logbook.status === 'review_kadiv' && ['kadiv', 'admin'].includes(reviewerRole)) {
         newStatus = 'approved';
-      } else if (reviewerRole === 'mentor' && logbook.status === 'review_mentor') {
+      } else if (logbook.status === 'review_mentor' && reviewerRole === 'mentor') {
         newStatus = 'review_kadiv';
+      } else if (reviewerRole === 'admin') {
+        // Admin can approve directly
+        newStatus = 'approved';
       } else {
         return res.status(400).json({
           success: false,
@@ -395,17 +438,32 @@ exports.reviewLogbook = async (req, res) => {
       });
     }
 
-    // Update logbook status
+    // Update logbook
     const updatedLogbook = await prisma.logbooks.update({
-      where: { id: parseInt(id) },
-      data: { status: newStatus },
+      where: { id_logbooks: parseInt(id) },
+      data: {
+        status: newStatus,
+        approved_by: reviewerId,
+        approved_at: new Date()
+      },
       include: {
-        user: {
+        internship: {
+          include: {
+            user: {
+              select: {
+                id_users: true,
+                full_name: true,
+                email: true,
+                position: true
+              }
+            }
+          }
+        },
+        approver: {
           select: {
-            id: true,
+            id_users: true,
             full_name: true,
-            email: true,
-            position: true
+            role: true
           }
         }
       }
@@ -427,80 +485,3 @@ exports.reviewLogbook = async (req, res) => {
   }
 };
 
-/**
- * Get logbook statistics
- * GET /api/logbooks/stats
- */
-exports.getLogbookStats = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { month, year } = req.query;
-
-    const currentDate = new Date();
-    const currentMonth = month ? parseInt(month) - 1 : currentDate.getMonth();
-    const currentYear = year ? parseInt(year) : currentDate.getFullYear();
-
-    const startDate = new Date(currentYear, currentMonth, 1);
-    const endDate = new Date(currentYear, currentMonth + 1, 0);
-    endDate.setHours(23, 59, 59, 999);
-
-    // Count by status
-    const statusCounts = await prisma.logbooks.groupBy({
-      by: ['status'],
-      where: {
-        user_id: userId,
-        date: {
-          gte: startDate,
-          lte: endDate
-        }
-      },
-      _count: {
-        status: true
-      }
-    });
-
-    // Total logbooks
-    const totalLogbooks = await prisma.logbooks.count({
-      where: {
-        user_id: userId,
-        date: {
-          gte: startDate,
-          lte: endDate
-        }
-      }
-    });
-
-    // Total filled (not draft)
-    const totalFilled = await prisma.logbooks.count({
-      where: {
-        user_id: userId,
-        date: {
-          gte: startDate,
-          lte: endDate
-        },
-        status: {
-          not: 'draft'
-        }
-      }
-    });
-
-    res.status(200).json({
-      success: true,
-      data: {
-        month: currentMonth + 1,
-        year: currentYear,
-        total_logbooks: totalLogbooks,
-        total_filled: totalFilled,
-        by_status: statusCounts
-      }
-    });
-
-  } catch (error) {
-    console.error('Get logbook stats error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Terjadi kesalahan saat mengambil statistik logbook',
-      error: error.message
-    });
-  }
-};

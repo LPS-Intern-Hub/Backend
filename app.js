@@ -14,6 +14,7 @@ var dashboardRouter = require('./src/routes/dashboard');
 var permissionsRouter = require('./src/routes/permissions');
 var presencesRouter = require('./src/routes/presences');
 var logbooksRouter = require('./src/routes/logbooks');
+var internshipsRouter = require('./src/routes/internships');
 
 var app = express();
 
@@ -46,8 +47,7 @@ app.use('/api/dashboard', dashboardRouter);
 app.use('/api/permissions', permissionsRouter);
 app.use('/api/presences', presencesRouter);
 app.use('/api/logbooks', logbooksRouter);
-app.use('/api/permissions', permissionsRouter);
-app.use('/api/presences', presencesRouter);
+app.use('/api/internships', internshipsRouter);
 
 // Error handling middleware
 app.use((req, res, next) => {
