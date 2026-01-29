@@ -107,6 +107,46 @@ const uploadPresence = require('../middlewares/uploadPresence');
  *                       example: "hadir"
  *       400:
  *         description: Already checked in today or validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Anda sudah melakukan absen masuk hari ini"
+ *       404:
+ *         description: Active internship not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Data magang aktif tidak ditemukan"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Terjadi kesalahan saat absen masuk"
+ *                 error:
+ *                   type: string
+ *                   example: "Database connection failed"
  */
 router.post(
   '/check-in',
@@ -191,9 +231,47 @@ router.post(
  *                       type: string
  *                       example: "hadir"
  *       400:
- *         description: Already checked out or haven't checked in yet
+ *         description: Already checked out today
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Anda sudah melakukan absen pulang hari ini"
  *       404:
- *         description: Today's attendance record not found
+ *         description: Haven't checked in today or internship not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Anda belum melakukan absen masuk hari ini"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Terjadi kesalahan saat absen pulang"
+ *                 error:
+ *                   type: string
+ *                   example: "Database connection failed"
  */
 router.post(
   '/check-out',
@@ -212,7 +290,7 @@ router.post(
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Today's presence data
+ *         description: Today's presence data (can be null if no presence today)
  *         content:
  *           application/json:
  *             schema:
@@ -220,27 +298,76 @@ router.post(
  *               properties:
  *                 success:
  *                   type: boolean
+ *                   example: true
  *                 data:
  *                   type: object
+ *                   nullable: true
  *                   properties:
  *                     id_presensi:
  *                       type: integer
+ *                       example: 123
+ *                     id_internships:
+ *                       type: integer
+ *                       example: 1
  *                     date:
  *                       type: string
  *                       format: date
+ *                       example: "2026-01-29"
  *                     check_in:
  *                       type: string
- *                       example: "08:15:00"
+ *                       example: "08:15:30"
  *                     check_out:
  *                       type: string
- *                       example: "17:00:00"
+ *                       nullable: true
+ *                       example: "17:00:45"
+ *                     latitude:
+ *                       type: number
+ *                       format: double
+ *                       example: -6.200000
+ *                     longitude:
+ *                       type: number
+ *                       format: double
+ *                       example: 106.816666
  *                     location:
  *                       type: string
+ *                       example: "Kantor Pusat, Jakarta Selatan"
  *                     image_url:
  *                       type: string
+ *                       nullable: true
+ *                       example: "/uploads/presences/1706345730000-photo.jpg"
  *                     status:
  *                       type: string
  *                       enum: [hadir, izin, alfa, terlambat]
+ *                       example: "hadir"
+ *       404:
+ *         description: Active internship not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Data magang aktif tidak ditemukan"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Terjadi kesalahan saat mengambil data presensi"
+ *                 error:
+ *                   type: string
+ *                   example: "Database connection failed"
  */
 router.get('/today', auth, presenceController.getTodayPresence);
 
@@ -282,10 +409,74 @@ router.get('/today', auth, presenceController.getTodayPresence);
  *               properties:
  *                 success:
  *                   type: boolean
+ *                   example: true
  *                 data:
  *                   type: array
  *                   items:
  *                     type: object
+ *                     properties:
+ *                       id_presensi:
+ *                         type: integer
+ *                         example: 123
+ *                       date:
+ *                         type: string
+ *                         format: date
+ *                         example: "2026-01-29"
+ *                       check_in:
+ *                         type: string
+ *                         example: "08:15:30"
+ *                       check_out:
+ *                         type: string
+ *                         nullable: true
+ *                         example: "17:00:45"
+ *                       latitude:
+ *                         type: number
+ *                         format: double
+ *                         example: -6.200000
+ *                       longitude:
+ *                         type: number
+ *                         format: double
+ *                         example: 106.816666
+ *                       location:
+ *                         type: string
+ *                         example: "Kantor Pusat, Jakarta Selatan"
+ *                       image_url:
+ *                         type: string
+ *                         nullable: true
+ *                         example: "/uploads/presences/1706345730000-photo.jpg"
+ *                       status:
+ *                         type: string
+ *                         enum: [hadir, izin, alfa, terlambat]
+ *                         example: "hadir"
+ *       404:
+ *         description: Internship not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Data magang tidak ditemukan"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Terjadi kesalahan saat mengambil data presensi"
+ *                 error:
+ *                   type: string
+ *                   example: "Database connection failed"
  */
 router.get('/', auth, presenceController.getPresences);
 

@@ -76,9 +76,68 @@ const upload = require('../middlewares/upload');
  *                         type: string
  *                         enum: [pending, review_mentor, review_kadiv, approved, rejected]
  *                         example: "pending"
+ *                       approved_by:
+ *                         type: integer
+ *                         nullable: true
+ *                         example: null
+ *                       approved_at:
+ *                         type: string
+ *                         format: date-time
+ *                         nullable: true
+ *                         example: null
  *                       duration_days:
  *                         type: integer
  *                         example: 3
+ *                       internship:
+ *                         type: object
+ *                         properties:
+ *                           id_internships:
+ *                             type: integer
+ *                             example: 1
+ *                           user:
+ *                             type: object
+ *                             properties:
+ *                               id_users:
+ *                                 type: integer
+ *                                 example: 10
+ *                               full_name:
+ *                                 type: string
+ *                                 example: "Ahmad Zaki"
+ *                               email:
+ *                                 type: string
+ *                                 example: "ahmad.zaki@example.com"
+ *                               position:
+ *                                 type: string
+ *                                 example: "Backend Developer Intern"
+ *       404:
+ *         description: Internship not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Data magang tidak ditemukan"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Terjadi kesalahan saat mengambil data perizinan"
+ *                 error:
+ *                   type: string
+ *                   example: "Database connection failed"
  */
 router.get('/', auth, permissionController.getPermissions);
 
@@ -136,11 +195,84 @@ router.get('/', auth, permissionController.getPermissions);
  *                     status:
  *                       type: string
  *                       example: "pending"
+ *                     approved_by:
+ *                       type: integer
+ *                       nullable: true
+ *                       example: null
+ *                     approved_at:
+ *                       type: string
+ *                       format: date-time
+ *                       nullable: true
+ *                       example: null
  *                     duration_days:
  *                       type: integer
  *                       example: 3
+ *                     internship:
+ *                       type: object
+ *                       properties:
+ *                         id_internships:
+ *                           type: integer
+ *                           example: 1
+ *                         user:
+ *                           type: object
+ *                           properties:
+ *                             id_users:
+ *                               type: integer
+ *                               example: 10
+ *                             full_name:
+ *                               type: string
+ *                               example: "Ahmad Zaki"
+ *                             email:
+ *                               type: string
+ *                               example: "ahmad.zaki@example.com"
+ *                             position:
+ *                               type: string
+ *                               example: "Backend Developer Intern"
+ *                             role:
+ *                               type: string
+ *                               example: "intern"
+ *                     approver:
+ *                       type: object
+ *                       nullable: true
+ *                       properties:
+ *                         id_users:
+ *                           type: integer
+ *                           example: 5
+ *                         full_name:
+ *                           type: string
+ *                           example: "Budi Santoso"
+ *                         role:
+ *                           type: string
+ *                           example: "mentor"
  *       404:
- *         description: Permission not found
+ *         description: Permission or internship not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Perizinan tidak ditemukan"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Terjadi kesalahan saat mengambil data perizinan"
+ *                 error:
+ *                   type: string
+ *                   example: "Database connection failed"
  */
 router.get('/:id', auth, permissionController.getPermissionById);
 
@@ -233,8 +365,69 @@ router.get('/:id', auth, permissionController.getPermissionById);
  *                     status:
  *                       type: string
  *                       example: "pending"
+ *                     internship:
+ *                       type: object
+ *                       properties:
+ *                         id_internships:
+ *                           type: integer
+ *                           example: 1
+ *                         user:
+ *                           type: object
+ *                           properties:
+ *                             id_users:
+ *                               type: integer
+ *                               example: 10
+ *                             full_name:
+ *                               type: string
+ *                               example: "Ahmad Zaki"
+ *                             email:
+ *                               type: string
+ *                               example: "ahmad.zaki@example.com"
+ *                             position:
+ *                               type: string
+ *                               example: "Backend Developer Intern"
  *       400:
- *         description: Validation error
+ *         description: Validation error or invalid date range
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Tanggal selesai tidak boleh lebih awal dari tanggal mulai"
+ *       404:
+ *         description: Internship not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Data magang tidak ditemukan"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Terjadi kesalahan saat mengajukan perizinan"
+ *                 error:
+ *                   type: string
+ *                   example: "Database connection failed"
  */
 router.post(
   '/',
@@ -308,10 +501,106 @@ router.post(
  *                   example: "Perizinan berhasil diperbarui"
  *                 data:
  *                   type: object
+ *                   properties:
+ *                     id_permissions:
+ *                       type: integer
+ *                       example: 1
+ *                     type:
+ *                       type: string
+ *                       example: "sakit"
+ *                     title:
+ *                       type: string
+ *                       example: "Izin Sakit"
+ *                     reason:
+ *                       type: string
+ *                       example: "Demam tinggi"
+ *                     start_date:
+ *                       type: string
+ *                       format: date
+ *                       example: "2026-01-27"
+ *                     end_date:
+ *                       type: string
+ *                       format: date
+ *                       example: "2026-01-29"
+ *                     attachment_url:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "/uploads/permissions/file.pdf"
+ *                     status:
+ *                       type: string
+ *                       example: "pending"
+ *                     approved_by:
+ *                       type: integer
+ *                       nullable: true
+ *                       example: null
+ *                     approved_at:
+ *                       type: string
+ *                       format: date-time
+ *                       nullable: true
+ *                       example: null
+ *                     internship:
+ *                       type: object
+ *                       properties:
+ *                         id_internships:
+ *                           type: integer
+ *                           example: 1
+ *                         user:
+ *                           type: object
+ *                           properties:
+ *                             id_users:
+ *                               type: integer
+ *                               example: 10
+ *                             full_name:
+ *                               type: string
+ *                               example: "Ahmad Zaki"
+ *                             email:
+ *                               type: string
+ *                               example: "ahmad.zaki@example.com"
+ *                             position:
+ *                               type: string
+ *                               example: "Backend Developer Intern"
  *       400:
- *         description: Permission cannot be updated (already processed)
+ *         description: Permission already processed, cannot be updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Perizinan yang sudah diproses tidak dapat diubah"
  *       404:
- *         description: Permission not found
+ *         description: Permission or internship not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Perizinan tidak ditemukan"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Terjadi kesalahan saat memperbarui perizinan"
+ *                 error:
+ *                   type: string
+ *                   example: "Database connection failed"
  */
 router.put(
   '/:id',
@@ -362,9 +651,47 @@ router.put(
  *                   type: string
  *                   example: "Perizinan berhasil dihapus"
  *       400:
- *         description: Permission cannot be deleted (already processed)
+ *         description: Permission already processed, cannot be deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Perizinan yang sudah diproses tidak dapat dihapus"
  *       404:
- *         description: Permission not found
+ *         description: Permission or internship not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Perizinan tidak ditemukan"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Terjadi kesalahan saat menghapus perizinan"
+ *                 error:
+ *                   type: string
+ *                   example: "Database connection failed"
  */
 router.delete('/:id', auth, permissionController.deletePermission);
 
@@ -415,20 +742,113 @@ router.delete('/:id', auth, permissionController.deletePermission);
  *                   properties:
  *                     id_permissions:
  *                       type: integer
+ *                       example: 1
+ *                     type:
+ *                       type: string
+ *                       example: "sakit"
+ *                     title:
+ *                       type: string
+ *                       example: "Izin Sakit"
+ *                     reason:
+ *                       type: string
+ *                       example: "Demam tinggi"
+ *                     start_date:
+ *                       type: string
+ *                       format: date
+ *                       example: "2026-01-27"
+ *                     end_date:
+ *                       type: string
+ *                       format: date
+ *                       example: "2026-01-29"
+ *                     attachment_url:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "/uploads/permissions/file.pdf"
  *                     status:
  *                       type: string
  *                       example: "approved"
  *                     approved_by:
  *                       type: integer
+ *                       example: 5
  *                     approved_at:
  *                       type: string
  *                       format: date-time
+ *                       example: "2026-01-29T10:30:00Z"
+ *                     internship:
+ *                       type: object
+ *                       properties:
+ *                         id_internships:
+ *                           type: integer
+ *                           example: 1
+ *                         user:
+ *                           type: object
+ *                           properties:
+ *                             id_users:
+ *                               type: integer
+ *                               example: 10
+ *                             full_name:
+ *                               type: string
+ *                               example: "Ahmad Zaki"
+ *                             email:
+ *                               type: string
+ *                               example: "ahmad.zaki@example.com"
+ *                             position:
+ *                               type: string
+ *                               example: "Backend Developer Intern"
+ *                     approver:
+ *                       type: object
+ *                       properties:
+ *                         id_users:
+ *                           type: integer
+ *                           example: 5
+ *                         full_name:
+ *                           type: string
+ *                           example: "Budi Santoso"
+ *                         role:
+ *                           type: string
+ *                           example: "mentor"
  *       400:
- *         description: Invalid action or permission not ready for review
- *       403:
- *         description: Forbidden - insufficient permissions
+ *         description: Invalid action
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Action tidak valid. Gunakan \"approve\" atau \"reject\""
  *       404:
  *         description: Permission not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Perizinan tidak ditemukan"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Terjadi kesalahan saat mereview perizinan"
+ *                 error:
+ *                   type: string
+ *                   example: "Database connection failed"
  */
 router.put(
   '/:id/review',

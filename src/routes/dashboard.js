@@ -33,26 +33,55 @@ const { auth } = require('../middlewares/auth');
  *                 data:
  *                   type: object
  *                   properties:
- *                     internship:
+ *                     user:
+ *                       type: object
+ *                       properties:
+ *                         id_users:
+ *                           type: integer
+ *                           example: 1
+ *                         full_name:
+ *                           type: string
+ *                           example: "John Doe"
+ *                         position:
+ *                           type: string
+ *                           example: "UI/UX Intern"
+ *                         role:
+ *                           type: string
+ *                           enum: [admin, mentor, kadiv, intern]
+ *                           example: "intern"
+ *                     internship_progress:
  *                       type: object
  *                       properties:
  *                         start_date:
  *                           type: string
  *                           format: date
+ *                           example: "2026-10-01"
  *                         end_date:
  *                           type: string
  *                           format: date
+ *                           example: "2027-01-31"
  *                         total_days:
  *                           type: integer
+ *                           example: 123
  *                         days_passed:
  *                           type: integer
- *                         progress_percentage:
- *                           type: number
- *                           format: float
+ *                           example: 45
+ *                         days_remaining:
+ *                           type: integer
+ *                           example: 78
+ *                         percentage:
+ *                           type: integer
+ *                           example: 45
+ *                         status:
+ *                           type: string
+ *                           enum: [aktif, selesai, diberhentikan]
+ *                           example: "aktif"
  *                     attendance_this_month:
  *                       type: integer
- *                     logbook_count:
+ *                       example: 43
+ *                     logbook_filled:
  *                       type: integer
+ *                       example: 43
  *       401:
  *         description: Unauthorized
  *         content:

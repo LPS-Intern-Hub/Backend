@@ -121,7 +121,6 @@ model Logbooks {
   id_logbooks     Int           @id @default(autoincrement())
   id_internships  Int
   date            DateTime      @db.Date
-  title           String        @db.VarChar(150)
   activity_detail String        @db.Text
   result_output   String?       @db.Text
   status          LogbookStatus @default(draft)

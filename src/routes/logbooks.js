@@ -50,6 +50,7 @@ const { auth, authorize } = require('../middlewares/auth');
  *               properties:
  *                 success:
  *                   type: boolean
+ *                   example: true
  *                 data:
  *                   type: array
  *                   items:
@@ -57,17 +58,80 @@ const { auth, authorize } = require('../middlewares/auth');
  *                     properties:
  *                       id_logbooks:
  *                         type: integer
+ *                         example: 1
  *                       date:
  *                         type: string
  *                         format: date
- *                       title:
- *                         type: string
+ *                         example: "2026-01-29"
  *                       activity_detail:
  *                         type: string
+ *                         example: "Mengimplementasikan fitur logbook"
  *                       result_output:
  *                         type: string
+ *                         example: "Berhasil membuat endpoint CRUD logbook"
  *                       status:
  *                         type: string
+ *                         enum: [draft, sent, review_mentor, review_kadiv, approved, rejected]
+ *                         example: "draft"
+ *                       approved_by:
+ *                         type: integer
+ *                         nullable: true
+ *                         example: null
+ *                       approved_at:
+ *                         type: string
+ *                         format: date-time
+ *                         nullable: true
+ *                         example: null
+ *                       internship:
+ *                         type: object
+ *                         properties:
+ *                           id_internships:
+ *                             type: integer
+ *                             example: 1
+ *                           user:
+ *                             type: object
+ *                             properties:
+ *                               id_users:
+ *                                 type: integer
+ *                                 example: 1
+ *                               full_name:
+ *                                 type: string
+ *                                 example: "John Doe"
+ *                               email:
+ *                                 type: string
+ *                                 example: "john.doe@example.com"
+ *                               position:
+ *                                 type: string
+ *                                 example: "Backend Developer"
+ *       404:
+ *         description: Internship data not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Data magang tidak ditemukan"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Terjadi kesalahan saat mengambil data logbook"
+ *                 error:
+ *                   type: string
+ *                   example: "Database connection failed"
  */
 router.get('/', auth, logbookController.getLogbooks);
 
@@ -88,7 +152,6 @@ router.get('/', auth, logbookController.getLogbooks);
  *             type: object
  *             required:
  *               - date
- *               - title
  *               - activity_detail
  *               - result_output
  *             properties:
@@ -97,12 +160,6 @@ router.get('/', auth, logbookController.getLogbooks);
  *                 format: date
  *                 description: Date of activity
  *                 example: "2026-01-27"
- *               title:
- *                 type: string
- *                 minLength: 3
- *                 maxLength: 255
- *                 description: Activity title
- *                 example: "Membuat API Dashboard"
  *               activity_detail:
  *                 type: string
  *                 minLength: 10
@@ -134,8 +191,89 @@ router.get('/', auth, logbookController.getLogbooks);
  *                   example: "Logbook berhasil disimpan sebagai draft"
  *                 data:
  *                   type: object
+ *                   properties:
+ *                     id_logbooks:
+ *                       type: integer
+ *                       example: 1
+ *                     id_internships:
+ *                       type: integer
+ *                       example: 1
+ *                     date:
+ *                       type: string
+ *                       format: date
+ *                       example: "2026-01-29"
+ *                     activity_detail:
+ *                       type: string
+ *                       example: "Mengimplementasikan fitur logbook"
+ *                     result_output:
+ *                       type: string
+ *                       example: "Berhasil membuat endpoint CRUD logbook"
+ *                     status:
+ *                       type: string
+ *                       enum: [draft, sent]
+ *                       example: "draft"
+ *                     approved_by:
+ *                       type: integer
+ *                       nullable: true
+ *                       example: null
+ *                     approved_at:
+ *                       type: string
+ *                       format: date-time
+ *                       nullable: true
+ *                       example: null
  *       400:
  *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 errors:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       msg:
+ *                         type: string
+ *                         example: "Tanggal harus diisi"
+ *                       param:
+ *                         type: string
+ *                         example: "date"
+ *                       location:
+ *                         type: string
+ *                         example: "body"
+ *       404:
+ *         description: Internship data not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Data magang tidak ditemukan"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Terjadi kesalahan saat membuat logbook"
+ *                 error:
+ *                   type: string
+ *                   example: "Database connection failed"
  */
 router.post(
   '/',
@@ -147,12 +285,6 @@ router.post(
       .withMessage('Tanggal harus diisi')
       .isISO8601()
       .withMessage('Format tanggal tidak valid'),
-    body('title')
-      .trim()
-      .notEmpty()
-      .withMessage('Judul kegiatan harus diisi')
-      .isLength({ min: 3, max: 255 })
-      .withMessage('Judul harus antara 3-255 karakter'),
     body('activity_detail')
       .trim()
       .notEmpty()
@@ -178,7 +310,7 @@ router.post(
  * /logbooks/{id}:
  *   put:
  *     summary: Update logbook
- *     description: Update existing logbook (only if status is draft, sent, or rejected)
+ *     description: Update logbook entry (only if status is draft or rejected)
  *     tags: [Logbooks]
  *     security:
  *       - bearerAuth: []
@@ -198,10 +330,6 @@ router.post(
  *               date:
  *                 type: string
  *                 format: date
- *               title:
- *                 type: string
- *                 minLength: 3
- *                 maxLength: 255
  *               activity_detail:
  *                 type: string
  *                 minLength: 10
@@ -214,10 +342,91 @@ router.post(
  *     responses:
  *       200:
  *         description: Logbook updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Logbook berhasil diperbarui"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id_logbooks:
+ *                       type: integer
+ *                       example: 1
+ *                     id_internships:
+ *                       type: integer
+ *                       example: 1
+ *                     date:
+ *                       type: string
+ *                       format: date
+ *                       example: "2026-01-29"
+ *                     activity_detail:
+ *                       type: string
+ *                       example: "Mengimplementasikan fitur logbook"
+ *                     result_output:
+ *                       type: string
+ *                       example: "Berhasil membuat endpoint CRUD logbook"
+ *                     status:
+ *                       type: string
+ *                       enum: [draft, sent, review_mentor, review_kadiv, approved, rejected]
+ *                       example: "draft"
+ *                     approved_by:
+ *                       type: integer
+ *                       nullable: true
+ *                       example: null
+ *                     approved_at:
+ *                       type: string
+ *                       format: date-time
+ *                       nullable: true
+ *                       example: null
  *       400:
  *         description: Cannot update logbook that has been processed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Logbook yang sudah diajukan tidak dapat diubah. Tunggu sampai ditolak untuk melakukan revisi"
  *       404:
  *         description: Logbook not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Logbook tidak ditemukan"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Terjadi kesalahan saat memperbarui logbook"
+ *                 error:
+ *                   type: string
+ *                   example: "Database connection failed"
  */
 router.put(
   '/:id',
@@ -256,7 +465,7 @@ router.put(
  * /logbooks/{id}:
  *   delete:
  *     summary: Delete logbook
- *     description: Delete logbook (only if status is draft or sent)
+ *     description: Delete logbook (only if status is draft or rejected)
  *     tags: [Logbooks]
  *     security:
  *       - bearerAuth: []
@@ -270,19 +479,272 @@ router.put(
  *     responses:
  *       200:
  *         description: Logbook deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Logbook berhasil dihapus"
  *       400:
  *         description: Cannot delete logbook that has been processed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Logbook yang sudah diajukan tidak dapat dihapus. Tunggu sampai ditolak untuk melakukan revisi"
  *       404:
- *         description: Logbook not found
+ *         description: Logbook or internship not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Logbook tidak ditemukan"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Terjadi kesalahan saat menghapus logbook"
+ *                 error:
+ *                   type: string
+ *                   example: "Database connection failed"
  */
 router.delete('/:id', auth, authorize('intern'), logbookController.deleteLogbook);
+
+/**
+ * @swagger
+ * /logbooks/{id}:
+ *   get:
+ *     summary: Get logbook by ID
+ *     description: Retrieve a specific logbook entry with full details
+ *     tags: [Logbooks]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Logbook ID
+ *     responses:
+ *       200:
+ *         description: Logbook details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id_logbooks:
+ *                       type: integer
+ *                     id_internships:
+ *                       type: integer
+ *                     date:
+ *                       type: string
+ *                       format: date
+ *                     activity_detail:
+ *                       type: string
+ *                     result_output:
+ *                       type: string
+ *                       example: "Berhasil membuat endpoint CRUD logbook"
+ *                     status:
+ *                       type: string
+ *                       enum: [draft, sent, review_mentor, review_kadiv, approved, rejected]
+ *                       example: "draft"
+ *                     approved_by:
+ *                       type: integer
+ *                       nullable: true
+ *                       example: null
+ *                     approved_at:
+ *                       type: string
+ *                       format: date-time
+ *                       nullable: true
+ *                       example: null
+ *       404:
+ *         description: Logbook or internship not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Logbook tidak ditemukan"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Terjadi kesalahan saat mengambil data logbook"
+ *                 error:
+ *                   type: string
+ *                   example: "Database connection failed"
+ */
+router.get('/:id', auth, logbookController.getLogbookById);
+
+/**
+ * @swagger
+ * /logbooks/submit-monthly:
+ *   post:
+ *     summary: Submit all draft logbooks for a month
+ *     description: Change status of all draft logbooks in specified month to 'sent' for mentor review
+ *     tags: [Logbooks]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - month
+ *               - year
+ *             properties:
+ *               month:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 12
+ *                 description: Month number (1-12)
+ *                 example: 1
+ *               year:
+ *                 type: integer
+ *                 description: Year
+ *                 example: 2026
+ *     responses:
+ *       200:
+ *         description: Logbooks submitted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "10 logbook berhasil diajukan ke mentor"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     submitted_count:
+ *                       type: integer
+ *                       example: 10
+ *                     month:
+ *                       type: integer
+ *                       example: 1
+ *                     year:
+ *                       type: integer
+ *                       example: 2026
+ *       400:
+ *         description: Invalid month or year
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Bulan harus antara 1-12"
+ *       404:
+ *         description: No draft logbooks found for specified month or internship not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Tidak ada logbook draft untuk bulan tersebut"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Terjadi kesalahan saat mengajukan logbook"
+ *                 error:
+ *                   type: string
+ *                   example: "Database connection failed"
+ */
+router.post(
+  '/submit-monthly',
+  auth,
+  authorize('intern'),
+  [
+    body('month')
+      .notEmpty()
+      .withMessage('Bulan harus diisi')
+      .isInt({ min: 1, max: 12 })
+      .withMessage('Bulan harus antara 1-12'),
+    body('year')
+      .notEmpty()
+      .withMessage('Tahun harus diisi')
+      .isInt({ min: 2000, max: 2100 })
+      .withMessage('Tahun tidak valid')
+  ],
+  logbookController.submitMonthlyLogbooks
+);
 
 /**
  * @swagger
  * /logbooks/{id}/review:
  *   put:
  *     summary: Review logbook
- *     description: Approve or reject logbook (mentor/kadiv only)
+ *     description: Approve or reject logbook (mentor/kadiv only). Mentor approves sent logbooks to kadiv, kadiv gives final approval.
  *     tags: [Logbooks]
  *     security:
  *       - bearerAuth: []
@@ -323,10 +785,76 @@ router.delete('/:id', auth, authorize('intern'), logbookController.deleteLogbook
  *                   example: "Logbook berhasil disetujui"
  *                 data:
  *                   type: object
+ *                   properties:
+ *                     id_logbooks:
+ *                       type: integer
+ *                       example: 1
+ *                     id_internships:
+ *                       type: integer
+ *                       example: 1
+ *                     date:
+ *                       type: string
+ *                       format: date
+ *                       example: "2026-01-29"
+ *                     activity_detail:
+ *                       type: string
+ *                       example: "Mengimplementasikan fitur logbook"
+ *                     result_output:
+ *                       type: string
+ *                       example: "Berhasil membuat endpoint CRUD logbook"
+ *                     status:
+ *                       type: string
+ *                       enum: [review_kadiv, approved, rejected]
+ *                       example: "review_kadiv"
+ *                     approved_by:
+ *                       type: integer
+ *                       example: 2
+ *                     approved_at:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2026-01-29T10:30:00.000Z"
  *       400:
  *         description: Invalid action or status not ready for review
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Status logbook tidak sesuai untuk direview"
  *       404:
  *         description: Logbook not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Logbook tidak ditemukan"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Terjadi kesalahan saat mereview logbook"
+ *                 error:
+ *                   type: string
+ *                   example: "Database connection failed"
  */
 router.put(
   '/:id/review',

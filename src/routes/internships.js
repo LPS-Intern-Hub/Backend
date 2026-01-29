@@ -22,188 +22,83 @@ const { auth, authorize } = require('../middlewares/auth');
  *     responses:
  *       200:
  *         description: Internship data retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id_internships:
+ *                       type: integer
+ *                       example: 1
+ *                     id_users:
+ *                       type: integer
+ *                       example: 10
+ *                     start_date:
+ *                       type: string
+ *                       format: date
+ *                       example: "2026-01-01"
+ *                     end_date:
+ *                       type: string
+ *                       format: date
+ *                       example: "2026-06-30"
+ *                     status:
+ *                       type: string
+ *                       enum: [aktif, selesai, diberhentikan]
+ *                       example: "aktif"
+ *                     user:
+ *                       type: object
+ *                       properties:
+ *                         id_users:
+ *                           type: integer
+ *                           example: 10
+ *                         full_name:
+ *                           type: string
+ *                           example: "Ahmad Zaki"
+ *                         email:
+ *                           type: string
+ *                           example: "ahmad.zaki@example.com"
+ *                         position:
+ *                           type: string
+ *                           example: "Backend Developer Intern"
+ *                         role:
+ *                           type: string
+ *                           example: "intern"
  *       404:
  *         description: Internship not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Data magang tidak ditemukan"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Terjadi kesalahan saat mengambil data magang"
+ *                 error:
+ *                   type: string
+ *                   example: "Database connection failed"
  */
 router.get('/me', auth, internshipController.getMyInternship);
-
-/**
- * @swagger
- * /internships:
- *   get:
- *     summary: Get all internships (Admin only)
- *     tags: [Internships]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *           enum: [aktif, selesai, diberhentikan]
- *     responses:
- *       200:
- *         description: List of internships
- */
-router.get(
-    '/',
-    auth,
-    authorize('admin'),
-    internshipController.getAllInternships
-);
-
-/**
- * @swagger
- * /internships/{id}:
- *   get:
- *     summary: Get internship by ID (Admin only)
- *     tags: [Internships]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Internship data
- *       404:
- *         description: Internship not found
- */
-router.get(
-    '/:id',
-    auth,
-    authorize('admin'),
-    internshipController.getInternshipById
-);
-
-/**
- * @swagger
- * /internships:
- *   post:
- *     summary: Create new internship (Admin only)
- *     tags: [Internships]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - id_users
- *               - start_date
- *               - end_date
- *             properties:
- *               id_users:
- *                 type: integer
- *               start_date:
- *                 type: string
- *                 format: date
- *               end_date:
- *                 type: string
- *                 format: date
- *               status:
- *                 type: string
- *                 enum: [aktif, selesai, diberhentikan]
- *     responses:
- *       201:
- *         description: Internship created successfully
- */
-router.post(
-    '/',
-    auth,
-    authorize('admin'),
-    [
-        body('id_users')
-            .notEmpty()
-            .withMessage('ID user harus diisi')
-            .isInt()
-            .withMessage('ID user harus berupa angka'),
-        body('start_date')
-            .notEmpty()
-            .withMessage('Tanggal mulai harus diisi')
-            .isISO8601()
-            .withMessage('Format tanggal mulai tidak valid'),
-        body('end_date')
-            .notEmpty()
-            .withMessage('Tanggal selesai harus diisi')
-            .isISO8601()
-            .withMessage('Format tanggal selesai tidak valid'),
-        body('status')
-            .optional()
-            .isIn(['aktif', 'selesai', 'diberhentikan'])
-            .withMessage('Status tidak valid')
-    ],
-    internshipController.createInternship
-);
-
-/**
- * @swagger
- * /internships/{id}:
- *   put:
- *     summary: Update internship (Admin only)
- *     tags: [Internships]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               start_date:
- *                 type: string
- *                 format: date
- *               end_date:
- *                 type: string
- *                 format: date
- *               status:
- *                 type: string
- *                 enum: [aktif, selesai, diberhentikan]
- *     responses:
- *       200:
- *         description: Internship updated successfully
- */
-router.put(
-    '/:id',
-    auth,
-    authorize('admin'),
-    internshipController.updateInternship
-);
-
-/**
- * @swagger
- * /internships/{id}:
- *   delete:
- *     summary: Delete internship (Admin only)
- *     tags: [Internships]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Internship deleted successfully
- */
-router.delete(
-    '/:id',
-    auth,
-    authorize('admin'),
-    internshipController.deleteInternship
-);
 
 module.exports = router;

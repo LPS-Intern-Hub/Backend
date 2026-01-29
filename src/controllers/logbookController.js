@@ -47,7 +47,6 @@ exports.getLogbooks = async (req, res) => {
       select: {
         id_logbooks: true,
         date: true,
-        title: true,
         activity_detail: true,
         result_output: true,
         status: true,
@@ -172,7 +171,7 @@ exports.createLogbook = async (req, res) => {
     }
 
     const userId = req.user.id_users;
-    const { date, title, activity_detail, result_output, status } = req.body;
+    const { date, activity_detail, result_output, status } = req.body;
 
     // Get internship first
     const internship = await prisma.internships.findFirst({
@@ -191,7 +190,6 @@ exports.createLogbook = async (req, res) => {
       data: {
         id_internships: internship.id_internships,
         date: new Date(date),
-        title,
         activity_detail,
         result_output,
         status: status || 'draft'
@@ -236,7 +234,7 @@ exports.updateLogbook = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id_users;
-    const { date, title, activity_detail, result_output, status } = req.body;
+    const { date, activity_detail, result_output, status } = req.body;
 
     // Get internship first
     const internship = await prisma.internships.findFirst({
@@ -265,18 +263,17 @@ exports.updateLogbook = async (req, res) => {
       });
     }
 
-    // Only allow update if not yet approved
-    if (['approved', 'review_kadiv'].includes(existingLogbook.status)) {
+    // Only allow update if status is draft or rejected
+    if (!['draft', 'rejected'].includes(existingLogbook.status)) {
       return res.status(400).json({
         success: false,
-        message: 'Logbook yang sudah diproses tidak dapat diubah'
+        message: 'Logbook yang sudah diajukan tidak dapat diubah. Tunggu sampai ditolak untuk melakukan revisi'
       });
     }
 
     // Prepare update data
     const updateData = {};
     if (date) updateData.date = new Date(date);
-    if (title) updateData.title = title;
     if (activity_detail) updateData.activity_detail = activity_detail;
     if (result_output !== undefined) updateData.result_output = result_output;
     if (status) {
@@ -359,11 +356,11 @@ exports.deleteLogbook = async (req, res) => {
       });
     }
 
-    // Only allow delete if status is draft or sent
-    if (!['draft', 'sent'].includes(logbook.status)) {
+    // Only allow delete if status is draft or rejected
+    if (!['draft', 'rejected'].includes(logbook.status)) {
       return res.status(400).json({
         success: false,
-        message: 'Logbook yang sudah diproses tidak dapat dihapus'
+        message: 'Logbook yang sudah diajukan tidak dapat dihapus. Tunggu sampai ditolak untuk melakukan revisi'
       });
     }
 
@@ -418,13 +415,10 @@ exports.reviewLogbook = async (req, res) => {
     } else if (action === 'approve') {
       if (logbook.status === 'sent' && reviewerRole === 'mentor') {
         newStatus = 'review_kadiv';
-      } else if (logbook.status === 'review_kadiv' && ['kadiv', 'admin'].includes(reviewerRole)) {
+      } else if (logbook.status === 'review_kadiv' && reviewerRole === 'kadiv') {
         newStatus = 'approved';
       } else if (logbook.status === 'review_mentor' && reviewerRole === 'mentor') {
         newStatus = 'review_kadiv';
-      } else if (reviewerRole === 'admin') {
-        // Admin can approve directly
-        newStatus = 'approved';
       } else {
         return res.status(400).json({
           success: false,
@@ -485,3 +479,84 @@ exports.reviewLogbook = async (req, res) => {
   }
 };
 
+/**
+ * Submit all draft logbooks for a specific month
+ * POST /api/logbooks/submit-monthly
+ */
+exports.submitMonthlyLogbooks = async (req, res) => {
+  try {
+    const userId = req.user.id_users;
+    const { month, year } = req.body;
+
+    // Validate month and year
+    if (!month || !year) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bulan dan tahun harus diisi'
+      });
+    }
+
+    if (month < 1 || month > 12) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bulan harus antara 1-12'
+      });
+    }
+
+    // Get internship first
+    const internship = await prisma.internships.findFirst({
+      where: { id_users: userId }
+    });
+
+    if (!internship) {
+      return res.status(404).json({
+        success: false,
+        message: 'Data magang tidak ditemukan'
+      });
+    }
+
+    // Calculate date range for the month
+    const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+    const endDate = new Date(parseInt(year), parseInt(month), 0);
+
+    // Update all draft logbooks in the specified month to 'sent'
+    const result = await prisma.logbooks.updateMany({
+      where: {
+        id_internships: internship.id_internships,
+        status: 'draft',
+        date: {
+          gte: startDate,
+          lte: endDate
+        }
+      },
+      data: {
+        status: 'sent'
+      }
+    });
+
+    if (result.count === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Tidak ada logbook draft untuk bulan tersebut'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `${result.count} logbook berhasil diajukan ke mentor`,
+      data: {
+        submitted_count: result.count,
+        month: month,
+        year: year
+      }
+    });
+
+  } catch (error) {
+    console.error('Submit monthly logbooks error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Terjadi kesalahan saat mengajukan logbook',
+      error: error.message
+    });
+  }
+};
