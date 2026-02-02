@@ -34,7 +34,7 @@ const { auth } = require('../middlewares/auth');
  *               email:
  *                 type: string
  *                 format: email
- *                 example: john.doe@example.com
+ *                 example: intern1@simagang.com
  *               password:
  *                 type: string
  *                 example: password123
@@ -67,7 +67,7 @@ const { auth } = require('../middlewares/auth');
  *                         email:
  *                           type: string
  *                           format: email
- *                           example: "john.doe@example.com"
+ *                           example: "intern1@simagang.com"
  *                         role:
  *                           type: string
  *                           enum: [intern, mentor, kadiv, admin]
@@ -190,7 +190,7 @@ router.post(
  *                     email:
  *                       type: string
  *                       format: email
- *                       example: "john.doe@example.com"
+ *                       example: "intern1@simagang.com"
  *                     role:
  *                       type: string
  *                       enum: [intern, mentor, kadiv, admin]

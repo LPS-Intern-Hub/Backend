@@ -183,10 +183,6 @@ exports.createPermission = async (req, res) => {
     // Validation
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      // Delete uploaded file if validation fails
-      if (req.file) {
-        fs.unlinkSync(req.file.path);
-      }
       return res.status(400).json({
         success: false,
         errors: errors.array()
@@ -202,9 +198,6 @@ exports.createPermission = async (req, res) => {
     });
 
     if (!internship) {
-      if (req.file) {
-        fs.unlinkSync(req.file.path);
-      }
       return res.status(404).json({
         success: false,
         message: 'Data magang tidak ditemukan'
@@ -216,9 +209,6 @@ exports.createPermission = async (req, res) => {
     const endDate = new Date(end_date);
 
     if (endDate < startDate) {
-      if (req.file) {
-        fs.unlinkSync(req.file.path);
-      }
       return res.status(400).json({
         success: false,
         message: 'Tanggal selesai tidak boleh lebih awal dari tanggal mulai'
@@ -227,12 +217,6 @@ exports.createPermission = async (req, res) => {
 
     // Auto-generate title from type
     const title = type === 'sakit' ? 'Izin Sakit' : 'Izin';
-
-    // Handle attachment
-    let attachmentUrl = null;
-    if (req.file) {
-      attachmentUrl = `/uploads/permissions/${req.file.filename}`;
-    }
 
     // Create permission
     const permission = await prisma.permissions.create({
@@ -243,7 +227,6 @@ exports.createPermission = async (req, res) => {
         reason,
         start_date: startDate,
         end_date: endDate,
-        attachment_url: attachmentUrl,
         status: 'pending'
       },
       include: {
@@ -270,10 +253,6 @@ exports.createPermission = async (req, res) => {
 
   } catch (error) {
     console.error('Create permission error:', error);
-    // Delete uploaded file if error occurs
-    if (req.file) {
-      fs.unlinkSync(req.file.path);
-    }
     res.status(500).json({
       success: false,
       message: 'Terjadi kesalahan saat mengajukan perizinan',
@@ -298,9 +277,6 @@ exports.updatePermission = async (req, res) => {
     });
 
     if (!internship) {
-      if (req.file) {
-        fs.unlinkSync(req.file.path);
-      }
       return res.status(404).json({
         success: false,
         message: 'Data magang tidak ditemukan'
@@ -316,9 +292,6 @@ exports.updatePermission = async (req, res) => {
     });
 
     if (!existingPermission) {
-      if (req.file) {
-        fs.unlinkSync(req.file.path);
-      }
       return res.status(404).json({
         success: false,
         message: 'Perizinan tidak ditemukan'
@@ -327,9 +300,6 @@ exports.updatePermission = async (req, res) => {
 
     // Only allow update if status is 'pending' or 'rejected'
     if (!['pending', 'rejected'].includes(existingPermission.status)) {
-      if (req.file) {
-        fs.unlinkSync(req.file.path);
-      }
       return res.status(400).json({
         success: false,
         message: 'Perizinan yang sudah diproses tidak dapat diubah'
@@ -376,9 +346,6 @@ exports.updatePermission = async (req, res) => {
 
   } catch (error) {
     console.error('Update permission error:', error);
-    if (req.file) {
-      fs.unlinkSync(req.file.path);
-    }
     res.status(500).json({
       success: false,
       message: 'Terjadi kesalahan saat memperbarui perizinan',

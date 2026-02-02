@@ -44,7 +44,9 @@ exports.checkIn = async (req, res) => {
     }
 
     const currentTime = new Date();
-    const checkInTime = `${String(currentTime.getHours()).padStart(2, '0')}:${String(currentTime.getMinutes()).padStart(2, '0')}:${String(currentTime.getSeconds()).padStart(2, '0')}`;
+    // Create a DateTime object for check_in time
+    const checkInTime = new Date();
+    checkInTime.setHours(currentTime.getHours(), currentTime.getMinutes(), currentTime.getSeconds(), 0);
 
     // Handle uploaded image
     let imageUrl = null;
@@ -56,6 +58,8 @@ exports.checkIn = async (req, res) => {
     const hour = currentTime.getHours();
     const minute = currentTime.getMinutes();
     const isLate = hour > 8 || (hour === 8 && minute >= 30);
+    
+    console.log('Check-in debug:', { hour, minute, isLate, currentTime: currentTime.toISOString() });
 
     const presenceData = existingPresence
       ? await prisma.presensi.update({
@@ -147,7 +151,9 @@ exports.checkOut = async (req, res) => {
     }
 
     const currentTime = new Date();
-    const checkOutTime = `${String(currentTime.getHours()).padStart(2, '0')}:${String(currentTime.getMinutes()).padStart(2, '0')}:${String(currentTime.getSeconds()).padStart(2, '0')}`;
+    // Create a DateTime object for check_out time
+    const checkOutTime = new Date();
+    checkOutTime.setHours(currentTime.getHours(), currentTime.getMinutes(), currentTime.getSeconds(), 0);
 
     const updatedPresence = await prisma.presensi.update({
       where: { id_presensi: presence.id_presensi },

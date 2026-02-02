@@ -4,7 +4,6 @@ const router = express.Router();
 const { body } = require('express-validator');
 const permissionController = require('../controllers/permissionController');
 const { auth, authorize } = require('../middlewares/auth');
-const upload = require('../middlewares/upload');
 
 /**
  * @swagger
@@ -188,10 +187,6 @@ router.get('/', auth, permissionController.getPermissions);
  *                     end_date:
  *                       type: string
  *                       format: date
- *                     attachment_url:
- *                       type: string
- *                       nullable: true
- *                       example: "/uploads/permissions/file.pdf"
  *                     status:
  *                       type: string
  *                       example: "pending"
@@ -317,10 +312,6 @@ router.get('/:id', auth, permissionController.getPermissionById);
  *                 format: date
  *                 description: End date (YYYY-MM-DD)
  *                 example: "2026-01-29"
- *               attachment:
- *                 type: string
- *                 format: binary
- *                 description: Supporting document (PDF, JPG, PNG - max 5MB)
  *     responses:
  *       201:
  *         description: Permission created successfully
@@ -358,10 +349,6 @@ router.get('/:id', auth, permissionController.getPermissionById);
  *                       type: string
  *                       format: date
  *                       example: "2026-01-29"
- *                     attachment_url:
- *                       type: string
- *                       nullable: true
- *                       example: "/uploads/permissions/bukti-sakit.pdf"
  *                     status:
  *                       type: string
  *                       example: "pending"
@@ -432,7 +419,6 @@ router.get('/:id', auth, permissionController.getPermissionById);
 router.post(
   '/',
   auth,
-  upload.single('attachment'),
   [
     body('type')
       .isIn(['sakit', 'izin'])
@@ -482,9 +468,6 @@ router.post(
  *                 type: string
  *               reason:
  *                 type: string
- *               attachment:
- *                 type: string
- *                 format: binary
  *     responses:
  *       200:
  *         description: Permission updated successfully
@@ -522,10 +505,6 @@ router.post(
  *                       type: string
  *                       format: date
  *                       example: "2026-01-29"
- *                     attachment_url:
- *                       type: string
- *                       nullable: true
- *                       example: "/uploads/permissions/file.pdf"
  *                     status:
  *                       type: string
  *                       example: "pending"
@@ -605,7 +584,6 @@ router.post(
 router.put(
   '/:id',
   auth,
-  upload.single('attachment'),
   [
     body('title')
       .optional()
@@ -760,10 +738,6 @@ router.delete('/:id', auth, permissionController.deletePermission);
  *                       type: string
  *                       format: date
  *                       example: "2026-01-29"
- *                     attachment_url:
- *                       type: string
- *                       nullable: true
- *                       example: "/uploads/permissions/file.pdf"
  *                     status:
  *                       type: string
  *                       example: "approved"

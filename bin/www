@@ -88,4 +88,5 @@ function onListening() {
     : 'port ' + addr.port;
   debug('Listening on ' + bind);
   console.log('Server is running on http://localhost:' + port);
+  console.log('OpenAPI documentation: http://localhost:' + port + '/api-docs/');
 }
