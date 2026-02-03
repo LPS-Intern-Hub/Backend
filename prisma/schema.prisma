@@ -48,14 +48,19 @@ enum LogbookStatus {
 }
 
 model Users {
-  id_users   Int      @id @default(autoincrement())
-  full_name  String   @db.VarChar(100)
-  email      String   @unique @db.VarChar(100)
-  password   String   @db.VarChar(255)
-  role       UserRole
-  position   String?  @db.VarChar(100)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id_users           String    @id @default(uuid())
+  full_name          String    @db.VarChar(100)
+  email              String    @unique @db.VarChar(100)
+  password           String    @db.VarChar(255)
+  role               UserRole
+  position           String?   @db.VarChar(100)
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
+  
+  // Security fields for account lockout
+  failed_login_count Int       @default(0)
+  locked_until       DateTime?
+  last_failed_login  DateTime?
 
   internships          Internships[]
   approved_permissions Permissions[] @relation("PermissionApprover")
@@ -65,8 +70,8 @@ model Users {
 }
 
 model Internships {
-  id_internships Int      @id @default(autoincrement())
-  id_users       Int
+  id_internships String   @id @default(uuid())
+  id_users       String
   start_date     DateTime @db.Date
   end_date       DateTime @db.Date
   status         InternshipStatus
@@ -80,55 +85,55 @@ model Internships {
 }
 
 model Permissions {
-  id_permissions Int              @id @default(autoincrement())
-  id_internships Int
+  id_permissions String           @id @default(uuid())
+  id_internships String
   type           PermissionType
   title          String           @db.VarChar(150)
   reason         String?          @db.Text
   start_date     DateTime         @db.Date
   end_date       DateTime         @db.Date
   status         PermissionStatus @default(pending)
-  approved_by    Int?
+  approved_by    String?
   approved_at    DateTime?
 
   internship Internships @relation(fields: [id_internships], references: [id_internships], onDelete: Cascade)
-  approver   Users?       @relation("PermissionApprover", fields: [approved_by], references: [id_users], onDelete: SetNull)
+  approver   Users?      @relation("PermissionApprover", fields: [approved_by], references: [id_users], onDelete: SetNull)
   presensi   Presensi[]
 
   @@map("permissions")
 }
 
 model Presensi {
-  id_presensi    Int            @id @default(autoincrement())
-  id_internships Int
-  id_permission  Int?
+  id_presensi    String         @id @default(uuid())
+  id_internships String
+  id_permission  String?
   date           DateTime       @db.Date
-  check_in       DateTime?       @db.Time
-  check_out      DateTime?       @db.Time
-  latitude       Decimal        @db.Decimal(10,8)
-  longitude      Decimal        @db.Decimal(11,8)
+  check_in       DateTime?      @db.Time
+  check_out      DateTime?      @db.Time
+  latitude       Decimal        @db.Decimal(10, 8)
+  longitude      Decimal        @db.Decimal(11, 8)
   location       String?        @db.VarChar(255)
   image_url      String?        @db.Text
   status         PresensiStatus
 
-  internship Internships @relation(fields: [id_internships], references: [id_internships], onDelete: Cascade)
+  internship Internships  @relation(fields: [id_internships], references: [id_internships], onDelete: Cascade)
   permission Permissions? @relation(fields: [id_permission], references: [id_permissions], onDelete: SetNull)
 
   @@map("presensi")
 }
 
 model Logbooks {
-  id_logbooks     Int           @id @default(autoincrement())
-  id_internships  Int
+  id_logbooks     String        @id @default(uuid())
+  id_internships  String
   date            DateTime      @db.Date
   activity_detail String        @db.Text
   result_output   String?       @db.Text
   status          LogbookStatus @default(draft)
-  approved_by     Int?
+  approved_by     String?
   approved_at     DateTime?
 
   internship Internships @relation(fields: [id_internships], references: [id_internships], onDelete: Cascade)
-  approver   Users?       @relation("LogbookApprover", fields: [approved_by], references: [id_users], onDelete: SetNull)
+  approver   Users?      @relation("LogbookApprover", fields: [approved_by], references: [id_users], onDelete: SetNull)
 
   @@map("logbooks")
 }

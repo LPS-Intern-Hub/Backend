@@ -4,6 +4,7 @@ const router = express.Router();
 const { body } = require('express-validator');
 const authController = require('../controllers/authController');
 const { auth } = require('../middlewares/auth');
+const { loginLimiter } = require('../middlewares/rateLimiter');
 
 /**
  * @swagger
@@ -143,6 +144,7 @@ const { auth } = require('../middlewares/auth');
  */
 router.post(
   '/login',
+  loginLimiter, // Rate limiting: 5 attempts per 15 minutes
   [
     body('email')
       .trim()
@@ -250,5 +252,33 @@ router.post(
  *                   example: "Database connection failed"
  */
 router.get('/me', auth, authController.getProfile);
+
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Logout user
+ *     description: Revoke current JWT token and logout user
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Logout successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Logout berhasil"
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/logout', auth, authController.logout);
 
 module.exports = router;
