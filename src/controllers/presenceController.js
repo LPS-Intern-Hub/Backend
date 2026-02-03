@@ -25,14 +25,18 @@ exports.checkIn = async (req, res) => {
       });
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Use UTC date for consistency
+    const now = new Date();
+    const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
 
     // Check if already checked in today
     const existingPresence = await prisma.presensi.findFirst({
       where: {
         id_internships: internship.id_internships,
-        date: today
+        date: {
+          gte: today,
+          lt: new Date(today.getTime() + 24 * 60 * 60 * 1000) // Less than tomorrow
+        }
       }
     });
 
@@ -125,19 +129,34 @@ exports.checkOut = async (req, res) => {
       });
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Use UTC date for consistency
+    const now = new Date();
+    const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+
+    console.log('Check-out debug - today:', today, 'internship:', internship.id_internships);
 
     // Check if presence exists
     const presence = await prisma.presensi.findFirst({
       where: {
         id_internships: internship.id_internships,
-        date: today
+        date: {
+          gte: today,
+          lt: new Date(today.getTime() + 24 * 60 * 60 * 1000) // Less than tomorrow
+        }
       }
     });
 
+    console.log('Check-out debug - presence found:', presence);
+
     if (!presence) {
       return res.status(404).json({
+        success: false,
+        message: 'Anda belum melakukan absen masuk hari ini'
+      });
+    }
+
+    if (!presence.check_in) {
+      return res.status(400).json({
         success: false,
         message: 'Anda belum melakukan absen masuk hari ini'
       });
@@ -198,13 +217,17 @@ exports.getTodayPresence = async (req, res) => {
       });
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Use UTC date for consistency
+    const now = new Date();
+    const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
 
     const presence = await prisma.presensi.findFirst({
       where: {
         id_internships: internship.id_internships,
-        date: today
+        date: {
+          gte: today,
+          lt: new Date(today.getTime() + 24 * 60 * 60 * 1000) // Less than tomorrow
+        }
       }
     });
 

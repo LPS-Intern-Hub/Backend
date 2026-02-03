@@ -180,9 +180,13 @@ exports.getPermissionById = async (req, res) => {
  */
 exports.createPermission = async (req, res) => {
   try {
+    console.log('Request body:', req.body);
+    console.log('Content-Type:', req.get('content-type'));
+    
     // Validation
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({
         success: false,
         errors: errors.array()
@@ -190,7 +194,7 @@ exports.createPermission = async (req, res) => {
     }
 
     const userId = req.user.id_users;
-    const { type, reason, start_date, end_date } = req.body;
+    const { type, title, reason, start_date, end_date } = req.body;
 
     // Get internship first
     const internship = await prisma.internships.findFirst({
@@ -214,9 +218,6 @@ exports.createPermission = async (req, res) => {
         message: 'Tanggal selesai tidak boleh lebih awal dari tanggal mulai'
       });
     }
-
-    // Auto-generate title from type
-    const title = type === 'sakit' ? 'Izin Sakit' : 'Izin';
 
     // Create permission
     const permission = await prisma.permissions.create({
@@ -267,6 +268,19 @@ exports.createPermission = async (req, res) => {
  */
 exports.updatePermission = async (req, res) => {
   try {
+    console.log('Update permission - body:', req.body);
+    console.log('Update permission - params:', req.params);
+    
+    // Validation
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+    
     const { id } = req.params;
     const userId = req.user.id_users;
     const { type, title, reason, start_date, end_date } = req.body;
@@ -308,16 +322,30 @@ exports.updatePermission = async (req, res) => {
 
     // Prepare update data
     const updateData = {};
-    if (type) updateData.type = type;
-    if (title) updateData.title = title;
-    if (reason) updateData.reason = reason;
-    if (start_date) updateData.start_date = new Date(start_date);
-    if (end_date) updateData.end_date = new Date(end_date);
+    if (type !== undefined) updateData.type = type;
+    if (title !== undefined) updateData.title = title;
+    if (reason !== undefined) updateData.reason = reason;
+    if (start_date !== undefined) updateData.start_date = new Date(start_date);
+    if (end_date !== undefined) updateData.end_date = new Date(end_date);
+
+    // Validate dates if both provided
+    if (start_date && end_date) {
+      const startDate = new Date(start_date);
+      const endDate = new Date(end_date);
+      if (endDate < startDate) {
+        return res.status(400).json({
+          success: false,
+          message: 'Tanggal selesai tidak boleh lebih awal dari tanggal mulai'
+        });
+      }
+    }
 
     // Reset status to 'pending' when updating
     updateData.status = 'pending';
     updateData.approved_by = null;
     updateData.approved_at = null;
+    
+    console.log('Update data:', updateData);
 
     const updatedPermission = await prisma.permissions.update({
       where: { id_permissions: parseInt(id) },

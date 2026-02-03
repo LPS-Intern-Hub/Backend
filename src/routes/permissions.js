@@ -276,18 +276,19 @@ router.get('/:id', auth, permissionController.getPermissionById);
  * /permissions:
  *   post:
  *     summary: Create new permission
- *     description: Submit a new leave or sick permission request with optional attachment
+ *     description: Submit a new leave or sick permission request
  *     tags: [Permissions]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
- *         multipart/form-data:
+ *         application/json:
  *           schema:
  *             type: object
  *             required:
  *               - type
+ *               - title
  *               - reason
  *               - start_date
  *               - end_date
@@ -296,7 +297,13 @@ router.get('/:id', auth, permissionController.getPermissionById);
  *                 type: string
  *                 enum: [sakit, izin]
  *                 description: Type of permission
- *                 example: sakit
+ *                 example: "sakit"
+ *               title:
+ *                 type: string
+ *                 minLength: 3
+ *                 maxLength: 150
+ *                 description: Permission title/subject
+ *                 example: "Sakit Demam"
  *               reason:
  *                 type: string
  *                 minLength: 10
@@ -306,12 +313,12 @@ router.get('/:id', auth, permissionController.getPermissionById);
  *                 type: string
  *                 format: date
  *                 description: Start date (YYYY-MM-DD)
- *                 example: "2026-01-27"
+ *                 example: "2026-02-03"
  *               end_date:
  *                 type: string
  *                 format: date
  *                 description: End date (YYYY-MM-DD)
- *                 example: "2026-01-29"
+ *                 example: "2026-02-05"
  *     responses:
  *       201:
  *         description: Permission created successfully
@@ -423,6 +430,12 @@ router.post(
     body('type')
       .isIn(['sakit', 'izin'])
       .withMessage('Jenis perizinan harus sakit atau izin'),
+    body('title')
+      .trim()
+      .notEmpty()
+      .withMessage('Judul harus diisi')
+      .isLength({ min: 3, max: 150 })
+      .withMessage('Judul minimal 3 dan maksimal 150 karakter'),
     body('reason')
       .trim()
       .notEmpty()
@@ -460,14 +473,36 @@ router.post(
  *           type: integer
  *     requestBody:
  *       content:
- *         multipart/form-data:
+ *         application/json:
  *           schema:
  *             type: object
  *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [sakit, izin]
+ *                 description: Type of permission
+ *                 example: "izin"
  *               title:
  *                 type: string
+ *                 minLength: 3
+ *                 maxLength: 150
+ *                 description: Permission title
+ *                 example: "Ujian Kampus"
  *               reason:
  *                 type: string
+ *                 minLength: 10
+ *                 description: Reason for permission
+ *                 example: "Ujian tengah semester"
+ *               start_date:
+ *                 type: string
+ *                 format: date
+ *                 description: Start date (YYYY-MM-DD)
+ *                 example: "2026-02-03"
+ *               end_date:
+ *                 type: string
+ *                 format: date
+ *                 description: End date (YYYY-MM-DD)
+ *                 example: "2026-02-05"
  *     responses:
  *       200:
  *         description: Permission updated successfully
@@ -585,16 +620,28 @@ router.put(
   '/:id',
   auth,
   [
+    body('type')
+      .optional()
+      .isIn(['sakit', 'izin'])
+      .withMessage('Jenis perizinan harus sakit atau izin'),
     body('title')
       .optional()
       .trim()
-      .isLength({ min: 3, max: 255 })
-      .withMessage('Judul harus antara 3-255 karakter'),
+      .isLength({ min: 3, max: 150 })
+      .withMessage('Judul harus antara 3-150 karakter'),
     body('reason')
       .optional()
       .trim()
       .isLength({ min: 10 })
-      .withMessage('Alasan minimal 10 karakter')
+      .withMessage('Alasan minimal 10 karakter'),
+    body('start_date')
+      .optional()
+      .isISO8601()
+      .withMessage('Format tanggal tidak valid'),
+    body('end_date')
+      .optional()
+      .isISO8601()
+      .withMessage('Format tanggal tidak valid')
   ],
   permissionController.updatePermission
 );
