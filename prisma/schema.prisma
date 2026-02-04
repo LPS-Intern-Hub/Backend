@@ -104,17 +104,21 @@ model Permissions {
 }
 
 model Presensi {
-  id_presensi    String         @id @default(uuid())
-  id_internships String
-  id_permission  String?
-  date           DateTime       @db.Date
-  check_in       DateTime?      @db.Time
-  check_out      DateTime?      @db.Time
-  latitude       Decimal        @db.Decimal(10, 8)
-  longitude      Decimal        @db.Decimal(11, 8)
-  location       String?        @db.VarChar(255)
-  image_url      String?        @db.Text
-  status         PresensiStatus
+  id_presensi          String         @id @default(uuid())
+  id_internships       String
+  id_permission        String?
+  date                 DateTime       @db.Date
+  check_in             DateTime?      @db.Time
+  check_out            DateTime?      @db.Time
+  checkin_latitude     Decimal?       @db.Decimal(10, 8)
+  checkin_longitude    Decimal?       @db.Decimal(11, 8)
+  checkin_location     String?        @db.VarChar(255)
+  checkin_image_url    String?        @db.Text
+  checkout_latitude    Decimal?       @db.Decimal(10, 8)
+  checkout_longitude   Decimal?       @db.Decimal(11, 8)
+  checkout_location    String?        @db.VarChar(255)
+  checkout_image_url   String?        @db.Text
+  status               PresensiStatus
 
   internship Internships  @relation(fields: [id_internships], references: [id_internships], onDelete: Cascade)
   permission Permissions? @relation(fields: [id_permission], references: [id_permissions], onDelete: SetNull)

@@ -1,26 +1,8 @@
 // cSpell:words Hanya diperbolehkan gambar
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 
-// Ensure upload directory exists for presences
-const uploadDir = path.join(__dirname, '../../uploads/presences');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Configure storage for presence images
-const presenceStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    // Create unique filename: userId-date-timestamp.ext
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    cb(null, `presence-${uniqueSuffix}${ext}`);
-  }
-});
+// Use memory storage for S3 upload (file disimpan di buffer, bukan disk)
+const presenceStorage = multer.memoryStorage();
 
 // File filter for images only
 const imageFilter = (req, file, cb) => {
@@ -37,7 +19,7 @@ const imageFilter = (req, file, cb) => {
   }
 };
 
-// Configure multer for presence
+// Configure multer for presence (upload ke S3)
 const uploadPresence = multer({
   storage: presenceStorage,
   fileFilter: imageFilter,

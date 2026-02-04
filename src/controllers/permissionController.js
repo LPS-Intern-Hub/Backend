@@ -11,7 +11,7 @@ const path = require('path');
 exports.getPermissions = async (req, res) => {
   try {
     const userId = req.user.id_users;
-    const { status, type } = req.query;
+    const { status, type, page = 1, limit = 5 } = req.query;
 
     // Get internship first
     const internship = await prisma.internships.findFirst({
@@ -36,11 +36,21 @@ exports.getPermissions = async (req, res) => {
       where.type = type;
     }
 
+    // Pagination setup
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Get total count
+    const total = await prisma.permissions.count({ where });
+
     const permissions = await prisma.permissions.findMany({
       where,
       orderBy: {
         id_permissions: 'desc'
       },
+      skip,
+      take: limitNum,
       select: {
         id_permissions: true,
         type: true,
@@ -81,7 +91,13 @@ exports.getPermissions = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: permissionsWithDuration
+      data: permissionsWithDuration,
+      meta: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum)
+      }
     });
 
   } catch (error) {

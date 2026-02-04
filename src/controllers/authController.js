@@ -175,46 +175,8 @@ exports.getProfile = async (req, res) => {
  */
 exports.logout = async (req, res) => {
   try {
-    const redisClient = require('../utils/redis');
-    const token = req.headers.authorization?.substring(7);
-
-    if (!token) {
-      return res.status(400).json({
-        success: false,
-        message: 'Token tidak ditemukan'
-      });
-    }
-
-    // Decode token to get expiry time
-    const decoded = jwt.decode(token);
-
-    if (!decoded || !decoded.exp) {
-      return res.status(400).json({
-        success: false,
-        message: 'Token tidak valid'
-      });
-    }
-
-    // Calculate remaining time until token expires
-    const expiresIn = decoded.exp - Math.floor(Date.now() / 1000);
-
-    if (expiresIn > 0) {
-      try {
-        // Add token to blacklist in Redis
-        if (redisClient.isReady) {
-          await redisClient.setEx(
-            `blacklist:${token}`,
-            expiresIn,
-            'revoked'
-          );
-        } else {
-          console.warn('⚠️  Redis not available. Token revocation skipped.');
-        }
-      } catch (error) {
-        console.error('Redis error during logout:', error);
-        // Continue with logout even if Redis fails
-      }
-    }
+    // Logout berhasil - token akan expire otomatis dalam 24 jam
+    // Tanpa Redis, token tidak bisa di-blacklist, tapi akan expire sendiri
 
     res.status(200).json({
       success: true,

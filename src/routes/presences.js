@@ -38,17 +38,17 @@ const uploadPresence = require('../middlewares/uploadPresence');
  *                 type: number
  *                 format: double
  *                 description: Latitude coordinate
- *                 example: -6.200000
+ *                 example: -6.22749
  *               longitude:
  *                 type: number
  *                 format: double
  *                 description: Longitude coordinate
- *                 example: 106.816666
+ *                 example: 106.80862
  *               location:
  *                 type: string
  *                 maxLength: 255
  *                 description: Check-in location name
- *                 example: "Kantor Pusat, Jakarta Selatan"
+ *                 example: "Pacific Century Place, SCBD Jakarta"
  *               image:
  *                 type: string
  *                 format: binary
@@ -87,20 +87,20 @@ const uploadPresence = require('../middlewares/uploadPresence');
  *                       type: string
  *                       nullable: true
  *                       example: null
- *                     latitude:
+ *                     checkin_latitude:
  *                       type: number
  *                       format: double
- *                       example: -6.200000
- *                     longitude:
+ *                       example: -6.22749
+ *                     checkin_longitude:
  *                       type: number
  *                       format: double
- *                       example: 106.816666
- *                     location:
+ *                       example: 106.80862
+ *                     checkin_location:
  *                       type: string
- *                       example: "Kantor Pusat, Jakarta Selatan"
- *                     image_url:
+ *                       example: "Pacific Century Place, SCBD Jakarta"
+ *                     checkin_image_url:
  *                       type: string
- *                       example: "/uploads/presences/1706345730000-photo.jpg"
+ *                       example: "https://absensi-simagang-lps.s3.amazonaws.com/presences/123.jpg"
  *                     status:
  *                       type: string
  *                       enum: [hadir, terlambat]
@@ -178,10 +178,40 @@ router.post(
  * /presences/check-out:
  *   post:
  *     summary: Check-out attendance
- *     description: Record check-out time for today's attendance
+ *     description: Record check-out with photo, location, and coordinates
  *     tags: [Presences]
  *     security:
  *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - latitude
+ *               - longitude
+ *               - location
+ *               - image
+ *             properties:
+ *               latitude:
+ *                 type: number
+ *                 format: float
+ *                 description: Latitude koordinat lokasi check-out
+ *                 example: -6.22759
+ *               longitude:
+ *                 type: number
+ *                 format: float
+ *                 description: Longitude koordinat lokasi check-out
+ *                 example: 106.80862
+ *               location:
+ *                 type: string
+ *                 description: Nama/alamat lokasi check-out
+ *                 example: "Pacific Century Place, SCBD Jakarta"
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: Foto wajah saat check-out (JPG/PNG, max 5MB)
  *     responses:
  *       200:
  *         description: Check-out successful
@@ -215,18 +245,30 @@ router.post(
  *                     check_out:
  *                       type: string
  *                       example: "17:00:45"
- *                     latitude:
+ *                     checkin_latitude:
  *                       type: number
- *                       example: -6.200000
- *                     longitude:
+ *                       example: -6.22759
+ *                     checkin_longitude:
  *                       type: number
- *                       example: 106.816666
- *                     location:
+ *                       example: 106.80862
+ *                     checkin_location:
  *                       type: string
- *                       example: "Kantor Pusat, Jakarta Selatan"
- *                     image_url:
+ *                       example: "Pacific Century Place, SCBD Jakarta"
+ *                     checkin_image_url:
  *                       type: string
- *                       example: "/uploads/presences/1706345730000-photo.jpg"
+ *                       example: "https://absensi-simagang-lps.s3.amazonaws.com/presences/123.jpg"
+ *                     checkout_latitude:
+ *                       type: number
+ *                       example: -6.22759
+ *                     checkout_longitude:
+ *                       type: number
+ *                       example: 106.80862
+ *                     checkout_location:
+ *                       type: string
+ *                       example: "Pacific Century Place, SCBD Jakarta"
+ *                     checkout_image_url:
+ *                       type: string
+ *                       example: "https://absensi-simagang-lps.s3.amazonaws.com/presences/456.jpg"
  *                     status:
  *                       type: string
  *                       example: "hadir"
@@ -276,6 +318,7 @@ router.post(
 router.post(
   '/check-out',
   auth,
+  uploadPresence.single('image'),
   presenceController.checkOut
 );
 
@@ -323,14 +366,14 @@ router.post(
  *                     latitude:
  *                       type: number
  *                       format: double
- *                       example: -6.200000
+ *                       example: -6.22759
  *                     longitude:
  *                       type: number
  *                       format: double
- *                       example: 106.816666
+ *                       example: 106.80862
  *                     location:
  *                       type: string
- *                       example: "Kantor Pusat, Jakarta Selatan"
+ *                       example: "Pacific Century Place, SCBD Jakarta"
  *                     image_url:
  *                       type: string
  *                       nullable: true
@@ -432,14 +475,14 @@ router.get('/today', auth, presenceController.getTodayPresence);
  *                       latitude:
  *                         type: number
  *                         format: double
- *                         example: -6.200000
+ *                         example: -6.22759
  *                       longitude:
  *                         type: number
  *                         format: double
- *                         example: 106.816666
+ *                         example: 106.80862
  *                       location:
  *                         type: string
- *                         example: "Kantor Pusat, Jakarta Selatan"
+ *                         example: "Pacific Century Place, SCBD Jakarta"
  *                       image_url:
  *                         type: string
  *                         nullable: true

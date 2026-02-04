@@ -21,18 +21,6 @@ const auth = async (req, res, next) => {
     const token = authHeader.substring(7); // Remove 'Bearer '
 
     try {
-      // ✅ SECURITY: Check if token is blacklisted (logout)
-      const redisClient = require('../utils/redis');
-      if (redisClient.isReady) {
-        const isBlacklisted = await redisClient.get(`blacklist:${token}`);
-        if (isBlacklisted) {
-          return res.status(401).json({
-            success: false,
-            message: 'Token sudah tidak valid. Silakan login kembali.'
-          });
-        }
-      }
-
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 

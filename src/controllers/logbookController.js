@@ -9,7 +9,7 @@ const { validationResult } = require('express-validator');
 exports.getLogbooks = async (req, res) => {
   try {
     const userId = req.user.id_users;
-    const { month, year, status } = req.query;
+    const { month, year, status, page = 1, limit = 5 } = req.query;
 
     // Get internship first
     const internship = await prisma.internships.findFirst({
@@ -39,11 +39,21 @@ exports.getLogbooks = async (req, res) => {
       where.status = status;
     }
 
+    // Pagination setup
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Get total count
+    const total = await prisma.logbooks.count({ where });
+
     const logbooks = await prisma.logbooks.findMany({
       where,
       orderBy: {
         date: 'desc'
       },
+      skip,
+      take: limitNum,
       select: {
         id_logbooks: true,
         date: true,
@@ -70,7 +80,13 @@ exports.getLogbooks = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: logbooks
+      data: logbooks,
+      meta: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum)
+      }
     });
 
   } catch (error) {

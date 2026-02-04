@@ -1,8 +1,30 @@
-// cSpell:words Absen Masuk Anda sudah melakukan absen masuk hari sakit Foto Terjadi kesalahan saat mengambil wajah harus diupload berhasil pulang belum presensi tidak ditemukan statistik magang
+// cSpell:words Absen Masuk Anda sudah melakukan absen masuk hari sakit Foto Terjadi kesalahan saat mengambil wajah harus diupload berhasil pulang belum presensi tidak ditemukan statistik magang terlalu jauh dari kantor
 const prisma = require('../utils/prisma');
 const { validationResult } = require('express-validator');
-const fs = require('fs');
-const path = require('path');
+const { uploadToS3, deleteFromS3 } = require('../utils/s3');
+
+/**
+ * Calculate distance between two coordinates using Haversine formula
+ * @param {number} lat1 - Latitude 1
+ * @param {number} lon1 - Longitude 1
+ * @param {number} lat2 - Latitude 2
+ * @param {number} lon2 - Longitude 2
+ * @returns {number} Distance in meters
+ */
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371e3; // Earth radius in meters
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // Distance in meters
+};
 
 /**
  * Check-in (Absen Masuk)
@@ -12,6 +34,30 @@ exports.checkIn = async (req, res) => {
   try {
     const userId = req.user.id_users;
     const { latitude, longitude, location } = req.body;
+
+    // Validate location - Check if within office radius
+    const officeLat = parseFloat(process.env.OFFICE_LATITUDE);
+    const officeLon = parseFloat(process.env.OFFICE_LONGITUDE);
+    const officeRadius = parseFloat(process.env.OFFICE_RADIUS_METERS || 200);
+    
+    const distance = calculateDistance(
+      parseFloat(latitude),
+      parseFloat(longitude),
+      officeLat,
+      officeLon
+    );
+
+    if (distance > officeRadius) {
+      return res.status(400).json({
+        success: false,
+        message: `Anda terlalu jauh dari kantor. Jarak: ${Math.round(distance)}m (maksimal: ${officeRadius}m)`,
+        data: {
+          distance: Math.round(distance),
+          maxRadius: officeRadius,
+          officeName: process.env.OFFICE_NAME
+        }
+      });
+    }
 
     // Get internship first
     const internship = await prisma.internships.findFirst({
@@ -52,10 +98,12 @@ exports.checkIn = async (req, res) => {
     const checkInTime = new Date();
     checkInTime.setHours(currentTime.getHours(), currentTime.getMinutes(), currentTime.getSeconds(), 0);
 
-    // Handle uploaded image
+    // Handle uploaded image - Upload to S3
     let imageUrl = null;
     if (req.file) {
-      imageUrl = `/uploads/presences/${req.file.filename}`;
+      const fileName = `presences/${Date.now()}-${userId}-${req.file.originalname}`;
+      const s3Result = await uploadToS3(req.file.buffer, fileName, req.file.mimetype);
+      imageUrl = s3Result.Location; // URL S3
     }
 
     // Determine status (simple logic: late if after 08:30)
@@ -70,10 +118,10 @@ exports.checkIn = async (req, res) => {
         where: { id_presensi: existingPresence.id_presensi },
         data: {
           check_in: checkInTime,
-          latitude: parseFloat(latitude),
-          longitude: parseFloat(longitude),
-          location,
-          image_url: imageUrl || existingPresence.image_url,
+          checkin_latitude: parseFloat(latitude),
+          checkin_longitude: parseFloat(longitude),
+          checkin_location: location,
+          checkin_image_url: imageUrl || existingPresence.checkin_image_url,
           status: isLate ? 'terlambat' : 'hadir'
         }
       })
@@ -82,10 +130,10 @@ exports.checkIn = async (req, res) => {
           id_internships: internship.id_internships,
           date: today,
           check_in: checkInTime,
-          latitude: parseFloat(latitude),
-          longitude: parseFloat(longitude),
-          location,
-          image_url: imageUrl,
+          checkin_latitude: parseFloat(latitude),
+          checkin_longitude: parseFloat(longitude),
+          checkin_location: location,
+          checkin_image_url: imageUrl,
           status: isLate ? 'terlambat' : 'hadir'
         }
       });
@@ -98,9 +146,6 @@ exports.checkIn = async (req, res) => {
 
   } catch (error) {
     console.error('Check-in error:', error);
-    if (req.file) {
-      fs.unlinkSync(req.file.path);
-    }
     res.status(500).json({
       success: false,
       message: 'Terjadi kesalahan saat absen masuk',
@@ -116,6 +161,31 @@ exports.checkIn = async (req, res) => {
 exports.checkOut = async (req, res) => {
   try {
     const userId = req.user.id_users;
+    const { latitude, longitude, location } = req.body;
+
+    // Validate location - Check if within office radius
+    const officeLat = parseFloat(process.env.OFFICE_LATITUDE);
+    const officeLon = parseFloat(process.env.OFFICE_LONGITUDE);
+    const officeRadius = parseFloat(process.env.OFFICE_RADIUS_METERS || 200);
+    
+    const distance = calculateDistance(
+      parseFloat(latitude),
+      parseFloat(longitude),
+      officeLat,
+      officeLon
+    );
+
+    if (distance > officeRadius) {
+      return res.status(400).json({
+        success: false,
+        message: `Anda terlalu jauh dari kantor. Jarak: ${Math.round(distance)}m (maksimal: ${officeRadius}m)`,
+        data: {
+          distance: Math.round(distance),
+          maxRadius: officeRadius,
+          officeName: process.env.OFFICE_NAME
+        }
+      });
+    }
 
     // Get internship first
     const internship = await prisma.internships.findFirst({
@@ -174,10 +244,22 @@ exports.checkOut = async (req, res) => {
     const checkOutTime = new Date();
     checkOutTime.setHours(currentTime.getHours(), currentTime.getMinutes(), currentTime.getSeconds(), 0);
 
+    // Handle uploaded image for check-out - Upload to S3
+    let checkOutImageUrl = null;
+    if (req.file) {
+      const fileName = `presences/checkout-${Date.now()}-${userId}-${req.file.originalname}`;
+      const s3Result = await uploadToS3(req.file.buffer, fileName, req.file.mimetype);
+      checkOutImageUrl = s3Result.Location; // URL S3
+    }
+
     const updatedPresence = await prisma.presensi.update({
       where: { id_presensi: presence.id_presensi },
       data: {
-        check_out: checkOutTime
+        check_out: checkOutTime,
+        checkout_latitude: latitude ? parseFloat(latitude) : null,
+        checkout_longitude: longitude ? parseFloat(longitude) : null,
+        checkout_location: location || null,
+        checkout_image_url: checkOutImageUrl
       }
     });
 
@@ -283,27 +365,48 @@ exports.getPresences = async (req, res) => {
       where.status = status;
     }
 
+    // Pagination setup
+    const { page = 1, limit = 5 } = req.query;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Get total count
+    const total = await prisma.presensi.count({ where });
+
     const presences = await prisma.presensi.findMany({
       where,
       orderBy: {
         date: 'desc'
       },
+      skip,
+      take: limitNum,
       select: {
         id_presensi: true,
         date: true,
         check_in: true,
         check_out: true,
-        latitude: true,
-        longitude: true,
-        location: true,
-        image_url: true,
+        checkin_latitude: true,
+        checkin_longitude: true,
+        checkin_location: true,
+        checkin_image_url: true,
+        checkout_latitude: true,
+        checkout_longitude: true,
+        checkout_location: true,
+        checkout_image_url: true,
         status: true
       }
     });
 
     res.status(200).json({
       success: true,
-      data: presences
+      data: presences,
+      meta: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum)
+      }
     });
 
   } catch (error) {
