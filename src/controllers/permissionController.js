@@ -2,6 +2,7 @@
 const prisma = require('../utils/prisma');
 const { validationResult } = require('express-validator');
 const { sendErrorResponse } = require('../utils/errorHandler');
+const { uploadToS3, deleteFromS3 } = require('../utils/s3');
 const fs = require('fs');
 const path = require('path');
 
@@ -188,6 +189,7 @@ exports.getPermissionById = async (req, res) => {
 exports.createPermission = async (req, res) => {
   try {
     console.log('Request body:', req.body);
+    console.log('Request file:', req.file);
     console.log('Content-Type:', req.get('content-type'));
     
     // Validation
@@ -215,6 +217,9 @@ exports.createPermission = async (req, res) => {
       });
     }
 
+    // Generate title if not provided
+    const permissionTitle = title || `${type === 'sakit' ? 'Sakit' : 'Izin'} - ${new Date(start_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+
     // Check date validity
     const startDate = new Date(start_date);
     const endDate = new Date(end_date);
@@ -226,16 +231,37 @@ exports.createPermission = async (req, res) => {
       });
     }
 
+    // Handle file upload to S3 if exists
+    let documentUrl = null;
+    if (req.file) {
+      const timestamp = Date.now();
+      const fileExtension = path.extname(req.file.originalname);
+      const fileName = `permissions/${userId}-${timestamp}${fileExtension}`;
+      
+      try {
+        const uploadResult = await uploadToS3(req.file.buffer, fileName, req.file.mimetype);
+        documentUrl = uploadResult.Location;
+        console.log('File uploaded to S3:', documentUrl);
+      } catch (uploadError) {
+        console.error('S3 upload error:', uploadError);
+        return res.status(500).json({
+          success: false,
+          message: 'Gagal mengupload dokumen pendukung'
+        });
+      }
+    }
+
     // Create permission
     const permission = await prisma.permissions.create({
       data: {
         id_internships: internship.id_internships,
         type,
-        title,
+        title: permissionTitle,
         reason,
         start_date: startDate,
         end_date: endDate,
-        status: 'pending'
+        status: 'pending',
+        supporting_document_url: documentUrl
       },
       include: {
         internship: {
@@ -329,6 +355,34 @@ exports.updatePermission = async (req, res) => {
     if (reason !== undefined) updateData.reason = reason;
     if (start_date !== undefined) updateData.start_date = new Date(start_date);
     if (end_date !== undefined) updateData.end_date = new Date(end_date);
+
+    // Handle file upload to S3 if new file provided
+    if (req.file) {
+      const timestamp = Date.now();
+      const fileExtension = path.extname(req.file.originalname);
+      const fileName = `permissions/${userId}-${timestamp}${fileExtension}`;
+      
+      try {
+        // Delete old file if exists
+        if (existingPermission.supporting_document_url) {
+          const oldFileKey = existingPermission.supporting_document_url.split('.com/')[1];
+          if (oldFileKey) {
+            await deleteFromS3(oldFileKey);
+          }
+        }
+        
+        // Upload new file
+        const uploadResult = await uploadToS3(req.file.buffer, fileName, req.file.mimetype);
+        updateData.supporting_document_url = uploadResult.Location;
+        console.log('New file uploaded to S3:', uploadResult.Location);
+      } catch (uploadError) {
+        console.error('S3 upload error:', uploadError);
+        return res.status(500).json({
+          success: false,
+          message: 'Gagal mengupload dokumen pendukung'
+        });
+      }
+    }
 
     // Validate dates if both provided
     if (start_date && end_date) {

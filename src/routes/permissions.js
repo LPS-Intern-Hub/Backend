@@ -4,6 +4,7 @@ const router = express.Router();
 const { body } = require('express-validator');
 const permissionController = require('../controllers/permissionController');
 const { auth, authorize } = require('../middlewares/auth');
+const uploadPermission = require('../middlewares/uploadPermission');
 
 /**
  * @swagger
@@ -426,14 +427,14 @@ router.get('/:id', auth, permissionController.getPermissionById);
 router.post(
   '/',
   auth,
+  uploadPermission.single('document'),
   [
     body('type')
       .isIn(['sakit', 'izin'])
       .withMessage('Jenis perizinan harus sakit atau izin'),
     body('title')
+      .optional()
       .trim()
-      .notEmpty()
-      .withMessage('Judul harus diisi')
       .isLength({ min: 3, max: 150 })
       .withMessage('Judul minimal 3 dan maksimal 150 karakter'),
     body('reason')
@@ -619,6 +620,7 @@ router.post(
 router.put(
   '/:id',
   auth,
+  uploadPermission.single('document'),
   [
     body('type')
       .optional()

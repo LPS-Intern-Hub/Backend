@@ -92,16 +92,17 @@ model Internships {
 }
 
 model Permissions {
-  id_permissions String           @id @default(uuid())
-  id_internships String
-  type           PermissionType
-  title          String           @db.VarChar(150)
-  reason         String?          @db.Text
-  start_date     DateTime         @db.Date
-  end_date       DateTime         @db.Date
-  status         PermissionStatus @default(pending)
-  approved_by    String?
-  approved_at    DateTime?
+  id_permissions          String           @id @default(uuid())
+  id_internships          String
+  type                    PermissionType
+  title                   String           @db.VarChar(150)
+  reason                  String?          @db.Text
+  start_date              DateTime         @db.Date
+  end_date                DateTime         @db.Date
+  status                  PermissionStatus @default(pending)
+  approved_by             String?
+  approved_at             DateTime?
+  supporting_document_url String?          @db.Text
 
   internship Internships @relation(fields: [id_internships], references: [id_internships], onDelete: Cascade)
   approver   Users?      @relation("PermissionApprover", fields: [approved_by], references: [id_users], onDelete: SetNull)
