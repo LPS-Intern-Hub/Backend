@@ -150,8 +150,7 @@ async function main() {
             end_date: new Date('2026-02-07'),
             status: 'approved',
             approved_by: mentor1.id_users,
-            approved_at: new Date('2026-02-04'),
-        },
+            approved_at: new Date('2026-02-04'),            supporting_document_url: null,        },
     });
 
     const permission2 = await prisma.permissions.create({
@@ -163,6 +162,7 @@ async function main() {
             start_date: new Date('2026-02-10'),
             end_date: new Date('2026-02-10'),
             status: 'pending',
+            supporting_document_url: null,
         },
     });
 
@@ -177,6 +177,7 @@ async function main() {
             status: 'rejected',
             approved_by: mentor1.id_users,
             approved_at: new Date('2026-03-14'),
+            supporting_document_url: null,
         },
     });
 
