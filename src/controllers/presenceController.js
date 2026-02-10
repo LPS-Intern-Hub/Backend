@@ -2,6 +2,7 @@
 const prisma = require('../utils/prisma');
 const { validationResult } = require('express-validator');
 const { uploadToS3, deleteFromS3 } = require('../utils/s3');
+const { sendErrorResponse } = require('../utils/errorHandler');
 
 /**
  * Calculate distance between two coordinates using Haversine formula
@@ -145,12 +146,7 @@ exports.checkIn = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Check-in error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Terjadi kesalahan saat absen masuk',
-      error: error.message
-    });
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat absen masuk', error);
   }
 };
 
@@ -270,12 +266,7 @@ exports.checkOut = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Check-out error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Terjadi kesalahan saat absen pulang',
-      error: error.message
-    });
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat absen pulang', error);
   }
 };
 
@@ -319,12 +310,7 @@ exports.getTodayPresence = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get today presence error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Terjadi kesalahan saat mengambil data presensi',
-      error: error.message
-    });
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat mengambil data presensi hari ini', error);
   }
 };
 
@@ -410,12 +396,7 @@ exports.getPresences = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get presences error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Terjadi kesalahan saat mengambil data presensi',
-      error: error.message
-    });
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat mengambil data presensi', error);
   }
 };
 

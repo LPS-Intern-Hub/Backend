@@ -1,6 +1,7 @@
 // cSpell:words Terjadi kesalahan saat mengambil perizinan Perizinan tidak ditemukan Tanggal selesai boleh lebih awal dari tanggal mulai berhasil diajukan mengajukan sudah diproses dapat diubah diperbarui memperbarui dihapus menghapus kadiv sesuai untuk direview Gunakan atau disetujui ditolak mereview magang
 const prisma = require('../utils/prisma');
 const { validationResult } = require('express-validator');
+const { sendErrorResponse } = require('../utils/errorHandler');
 const fs = require('fs');
 const path = require('path');
 
@@ -101,12 +102,7 @@ exports.getPermissions = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get permissions error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Terjadi kesalahan saat mengambil data perizinan',
-      error: error.message
-    });
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat mengambil data izin', error);
   }
 };
 
@@ -181,12 +177,7 @@ exports.getPermissionById = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get permission error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Terjadi kesalahan saat mengambil data perizinan',
-      error: error.message
-    });
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat mengambil data perizinan', error);
   }
 };
 
@@ -269,12 +260,7 @@ exports.createPermission = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Create permission error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Terjadi kesalahan saat mengajukan perizinan',
-      error: error.message
-    });
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat mengajukan perizinan', error);
   }
 };
 
@@ -316,7 +302,7 @@ exports.updatePermission = async (req, res) => {
     // Check if permission exists and belongs to user
     const existingPermission = await prisma.permissions.findFirst({
       where: {
-        id_permissions: parseInt(id),
+        id_permissions: id,
         id_internships: internship.id_internships
       }
     });
@@ -364,7 +350,7 @@ exports.updatePermission = async (req, res) => {
     console.log('Update data:', updateData);
 
     const updatedPermission = await prisma.permissions.update({
-      where: { id_permissions: parseInt(id) },
+      where: { id_permissions: id },
       data: updateData,
       include: {
         internship: {
@@ -389,12 +375,7 @@ exports.updatePermission = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Update permission error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Terjadi kesalahan saat memperbarui perizinan',
-      error: error.message
-    });
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat memperbarui perizinan', error);
   }
 };
 
@@ -422,7 +403,7 @@ exports.deletePermission = async (req, res) => {
     // Check if permission exists and belongs to user
     const permission = await prisma.permissions.findFirst({
       where: {
-        id_permissions: parseInt(id),
+        id_permissions: id,
         id_internships: internship.id_internships
       }
     });
@@ -444,7 +425,7 @@ exports.deletePermission = async (req, res) => {
 
     // Delete permission
     await prisma.permissions.delete({
-      where: { id_permissions: parseInt(id) }
+      where: { id_permissions: id }
     });
 
     res.status(200).json({
@@ -453,12 +434,7 @@ exports.deletePermission = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Delete permission error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Terjadi kesalahan saat menghapus perizinan',
-      error: error.message
-    });
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat menghapus perizinan', error);
   }
 };
 
@@ -538,11 +514,6 @@ exports.reviewPermission = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Review permission error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Terjadi kesalahan saat mereview perizinan',
-      error: error.message
-    });
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat mereview perizinan', error);
   }
 };

@@ -1,6 +1,7 @@
 // cSpell:words Terjadi kesalahan saat mengambil tidak ditemukan harus untuk tanggal sudah berhasil disimpan sebagai dikirim atau membuat diproses dapat diubah dihapus menghapus kadiv sesuai direview Gunakan disetujui ditolak mereview statistik diperbarui memperbarui magang
 const prisma = require('../utils/prisma');
 const { validationResult } = require('express-validator');
+const { sendErrorResponse } = require('../utils/errorHandler');
 
 /**
  * Get all logbooks for current user
@@ -90,12 +91,7 @@ exports.getLogbooks = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get logbooks error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Terjadi kesalahan saat mengambil data logbook',
-      error: error.message
-    });
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat mengambil data logbook', error);
   }
 };
 
@@ -122,7 +118,7 @@ exports.getLogbookById = async (req, res) => {
 
     const logbook = await prisma.logbooks.findFirst({
       where: {
-        id_logbooks: parseInt(id),
+        id_logbooks: id,
         id_internships: internship.id_internships
       },
       include: {
@@ -162,12 +158,7 @@ exports.getLogbookById = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get logbook error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Terjadi kesalahan saat mengambil data logbook',
-      error: error.message
-    });
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat mengambil data logbook', error);
   }
 };
 
@@ -233,12 +224,7 @@ exports.createLogbook = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Create logbook error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Terjadi kesalahan saat membuat logbook',
-      error: error.message
-    });
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat membuat logbook', error);
   }
 };
 
@@ -267,7 +253,7 @@ exports.updateLogbook = async (req, res) => {
     // Check if logbook exists
     const existingLogbook = await prisma.logbooks.findFirst({
       where: {
-        id_logbooks: parseInt(id),
+        id_logbooks: id,
         id_internships: internship.id_internships
       }
     });
@@ -302,7 +288,7 @@ exports.updateLogbook = async (req, res) => {
     }
 
     const updatedLogbook = await prisma.logbooks.update({
-      where: { id_logbooks: parseInt(id) },
+      where: { id_logbooks: id },
       data: updateData,
       include: {
         internship: {
@@ -327,12 +313,7 @@ exports.updateLogbook = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Update logbook error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Terjadi kesalahan saat memperbarui logbook',
-      error: error.message
-    });
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat memperbarui logbook', error);
   }
 };
 
@@ -360,7 +341,7 @@ exports.deleteLogbook = async (req, res) => {
     // Check if logbook exists
     const logbook = await prisma.logbooks.findFirst({
       where: {
-        id_logbooks: parseInt(id),
+        id_logbooks: id,
         id_internships: internship.id_internships
       }
     });
@@ -382,7 +363,7 @@ exports.deleteLogbook = async (req, res) => {
 
     // Delete logbook
     await prisma.logbooks.delete({
-      where: { id_logbooks: parseInt(id) }
+      where: { id_logbooks: id }
     });
 
     res.status(200).json({
@@ -391,12 +372,7 @@ exports.deleteLogbook = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Delete logbook error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Terjadi kesalahan saat menghapus logbook',
-      error: error.message
-    });
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat menghapus logbook', error);
   }
 };
 
@@ -413,7 +389,7 @@ exports.reviewLogbook = async (req, res) => {
 
     // Check if logbook exists
     const logbook = await prisma.logbooks.findUnique({
-      where: { id_logbooks: parseInt(id) }
+      where: { id_logbooks: id }
     });
 
     if (!logbook) {
@@ -450,7 +426,7 @@ exports.reviewLogbook = async (req, res) => {
 
     // Update logbook
     const updatedLogbook = await prisma.logbooks.update({
-      where: { id_logbooks: parseInt(id) },
+      where: { id_logbooks: id },
       data: {
         status: newStatus,
         approved_by: reviewerId,
@@ -486,12 +462,7 @@ exports.reviewLogbook = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Review logbook error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Terjadi kesalahan saat mereview logbook',
-      error: error.message
-    });
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat mereview logbook', error);
   }
 };
 
@@ -568,11 +539,6 @@ exports.submitMonthlyLogbooks = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Submit monthly logbooks error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Terjadi kesalahan saat mengajukan logbook',
-      error: error.message
-    });
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat mengajukan logbook', error);
   }
 };

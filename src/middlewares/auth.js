@@ -32,7 +32,8 @@ const auth = async (req, res, next) => {
           full_name: true,
           email: true,
           role: true,
-          position: true
+          position: true,
+          token_version: true
         }
       });
 
@@ -43,8 +44,19 @@ const auth = async (req, res, next) => {
         });
       }
 
+      // Verify token version (token revocation check)
+      if (decoded.token_version !== user.token_version) {
+        return res.status(401).json({
+          success: false,
+          message: 'Token sudah tidak valid. Silakan login kembali'
+        });
+      }
+
+      // Remove token_version from user object before attaching
+      const { token_version, ...userWithoutVersion } = user;
+      
       // Attach user to request object
-      req.user = user;
+      req.user = userWithoutVersion;
       next();
 
     } catch (error) {

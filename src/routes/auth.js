@@ -152,10 +152,12 @@ router.post(
       .withMessage('Email harus diisi')
       .isEmail()
       .withMessage('Format email tidak valid')
-      .normalizeEmail(),
+      .normalizeEmail()
+      .escape(), // ✅ SECURITY: XSS protection
     body('password')
       .notEmpty()
       .withMessage('Password harus diisi')
+      .trim()
   ],
   authController.login
 );
@@ -281,4 +283,177 @@ router.get('/me', auth, authController.getProfile);
  */
 router.post('/logout', auth, authController.logout);
 
+/**
+ * @swagger
+ * /auth/forgot-password:
+ *   post:
+ *     summary: Request password reset
+ *     description: Send password reset email to user
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: intern1@simagang.com
+ *     responses:
+ *       200:
+ *         description: Reset email sent (always returns success to prevent email enumeration)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Jika email terdaftar, link reset password telah dikirim"
+ *       400:
+ *         description: Validation error
+ *       500:
+ *         description: Server error
+ */
+router.post(
+  '/forgot-password',
+  [
+    body('email')
+      .trim()
+      .notEmpty()
+      .withMessage('Email harus diisi')
+      .isEmail()
+      .withMessage('Format email tidak valid')
+      .normalizeEmail()
+      .escape()
+  ],
+  authController.requestPasswordReset
+);
+
+/**
+ * @swagger
+ * /auth/verify-reset-token/{token}:
+ *   get:
+ *     summary: Verify reset token
+ *     description: Check if password reset token is valid and not expired
+ *     tags: [Authentication]
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Password reset token
+ *     responses:
+ *       200:
+ *         description: Token is valid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Token valid"
+ *       400:
+ *         description: Invalid or expired token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Token tidak valid atau sudah kadaluarsa"
+ *       500:
+ *         description: Server error
+ */
+router.get('/verify-reset-token/:token', authController.verifyResetToken);
+
+/**
+ * @swagger
+ * /auth/reset-password:
+ *   post:
+ *     summary: Reset password
+ *     description: Reset user password with valid token
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *               - newPassword
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 example: "a1b2c3d4e5f6..."
+ *               newPassword:
+ *                 type: string
+ *                 format: password
+ *                 minLength: 6
+ *                 example: "newPassword123"
+ *     responses:
+ *       200:
+ *         description: Password reset successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Password berhasil direset. Silakan login dengan password baru"
+ *       400:
+ *         description: Invalid token or validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Token tidak valid atau sudah kadaluarsa"
+ *       500:
+ *         description: Server error
+ */
+router.post(
+  '/reset-password',
+  [
+    body('token')
+      .trim()
+      .notEmpty()
+      .withMessage('Token harus diisi'),
+    body('newPassword')
+      .trim()
+      .notEmpty()
+      .withMessage('Password baru harus diisi')
+      .isLength({ min: 6 })
+      .withMessage('Password minimal 6 karakter')
+  ],
+  authController.resetPassword
+);
+
 module.exports = router;
+

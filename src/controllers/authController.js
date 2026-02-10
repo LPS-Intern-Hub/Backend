@@ -1,15 +1,21 @@
 // cSpell:words sudah terdaftar berhasil didaftarkan Terjadi kesalahan saat mendaftarkan atau salah tidak ditemukan mengambil
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { validationResult } = require('express-validator');
 const prisma = require('../utils/prisma');
+const { sendErrorResponse, constantTimeDelay } = require('../utils/errorHandler');
+const { sendPasswordResetEmail } = require('../utils/emailService');
 
 /**
- * Generate JWT Token
+ * Generate JWT Token with version for revocation support
  */
-const generateToken = (userId) => {
+const generateToken = (userId, tokenVersion) => {
   return jwt.sign(
-    { id_users: userId },
+    {
+      id_users: userId,
+      token_version: tokenVersion
+    },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN }
   );
@@ -40,6 +46,8 @@ exports.login = async (req, res) => {
     });
 
     if (!user) {
+      // ✅ SECURITY: Add delay to prevent timing attack (equalize with bcrypt compare time)
+      await constantTimeDelay(100);
       return res.status(401).json({
         success: false,
         message: 'Email atau password salah'
@@ -103,11 +111,11 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Generate token
-    const token = generateToken(user.id_users);
+    // Generate token with current token_version
+    const token = generateToken(user.id_users, user.token_version);
 
-    // Remove password from response
-    const { password: _, failed_login_count, locked_until, last_failed_login, ...userWithoutPassword } = user;
+    // Remove password and sensitive fields from response
+    const { password: _, failed_login_count, locked_until, last_failed_login, token_version, ...userWithoutPassword } = user;
 
     res.status(200).json({
       success: true,
@@ -119,12 +127,7 @@ exports.login = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Terjadi kesalahan saat login',
-      error: error.message
-    });
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat login', error);
   }
 };
 
@@ -160,12 +163,7 @@ exports.getProfile = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get profile error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Terjadi kesalahan saat mengambil profile',
-      error: error.message
-    });
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat mengambil profile', error);
   }
 };
 
@@ -175,8 +173,15 @@ exports.getProfile = async (req, res) => {
  */
 exports.logout = async (req, res) => {
   try {
-    // Logout berhasil - token akan expire otomatis dalam 24 jam
-    // Tanpa Redis, token tidak bisa di-blacklist, tapi akan expire sendiri
+    // Increment token_version to invalidate all existing tokens
+    await prisma.users.update({
+      where: { id_users: req.user.id_users },
+      data: {
+        token_version: {
+          increment: 1
+        }
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -184,12 +189,158 @@ exports.logout = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Logout error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Terjadi kesalahan saat logout',
-      error: error.message
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat logout', error);
+  }
+};
+
+/**
+ * Request password reset
+ * POST /api/auth/forgot-password
+ */
+exports.requestPasswordReset = async (req, res) => {
+  try {
+    // Validation
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { email } = req.body;
+
+    // Find user by email
+    const user = await prisma.users.findUnique({
+      where: { email }
     });
+
+    // Always return success to prevent email enumeration
+    if (!user) {
+      return res.status(200).json({
+        success: true,
+        message: 'Jika email terdaftar, link reset password telah dikirim'
+      });
+    }
+
+    // Generate secure random token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    // Save token to database
+    await prisma.users.update({
+      where: { id_users: user.id_users },
+      data: {
+        reset_token: resetToken,
+        reset_token_expires: resetTokenExpires
+      }
+    });
+
+    // Send email
+    await sendPasswordResetEmail(email, resetToken);
+
+    res.status(200).json({
+      success: true,
+      message: 'Jika email terdaftar, link reset password telah dikirim'
+    });
+
+  } catch (error) {
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat memproses permintaan', error);
+  }
+};
+
+/**
+ * Verify reset token
+ * GET /api/auth/verify-reset-token/:token
+ */
+exports.verifyResetToken = async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    const user = await prisma.users.findFirst({
+      where: {
+        reset_token: token,
+        reset_token_expires: {
+          gt: new Date()
+        }
+      }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token tidak valid atau sudah kadaluarsa'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Token valid'
+    });
+
+  } catch (error) {
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat memverifikasi token', error);
+  }
+};
+
+/**
+ * Reset password
+ * POST /api/auth/reset-password
+ */
+exports.resetPassword = async (req, res) => {
+  try {
+    // Validation
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { token, newPassword } = req.body;
+
+    // Find user with valid token
+    const user = await prisma.users.findFirst({
+      where: {
+        reset_token: token,
+        reset_token_expires: {
+          gt: new Date()
+        }
+      }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token tidak valid atau sudah kadaluarsa'
+      });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password and clear reset token
+    await prisma.users.update({
+      where: { id_users: user.id_users },
+      data: {
+        password: hashedPassword,
+        reset_token: null,
+        reset_token_expires: null,
+        // Increment token_version to invalidate all existing JWT tokens
+        token_version: {
+          increment: 1
+        }
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Password berhasil direset. Silakan login dengan password baru'
+    });
+
+  } catch (error) {
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat mereset password', error);
   }
 };
 

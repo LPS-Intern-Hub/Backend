@@ -61,6 +61,13 @@ model Users {
   failed_login_count Int       @default(0)
   locked_until       DateTime?
   last_failed_login  DateTime?
+  
+  // Token revocation via versioning
+  token_version      Int       @default(0)
+  
+  // Password reset fields
+  reset_token         String?   @db.Text
+  reset_token_expires DateTime?
 
   internships          Internships[]
   approved_permissions Permissions[] @relation("PermissionApprover")
