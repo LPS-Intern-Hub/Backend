@@ -4,7 +4,7 @@ const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/cl
 const validateAWSConfig = () => {
   const required = ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_S3_BUCKET'];
   const missing = required.filter(key => !process.env[key] || process.env[key].startsWith('your-'));
-  
+
   if (missing.length > 0) {
     console.warn('⚠️  AWS S3 not configured properly. Missing or placeholder values for:', missing.join(', '));
     console.warn('📝 Please update .env file with valid AWS credentials');
@@ -44,18 +44,19 @@ const uploadToS3 = async (fileBuffer, fileName, mimeType) => {
     Bucket: process.env.AWS_S3_BUCKET,
     Key: fileName,
     Body: fileBuffer,
-    ContentType: mimeType
+    ContentType: mimeType,
+    ACL: 'public-read' // Make file publicly accessible
     // ACL dihapus karena bucket menggunakan "Bucket owner enforced"
   };
 
   try {
     const command = new PutObjectCommand(params);
     await s3Client.send(command);
-    
+
     // Construct URL manually (v3 tidak return Location secara otomatis)
     const location = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'ap-southeast-1'}.amazonaws.com/${fileName}`;
     console.log('✅ File uploaded to S3:', location);
-    
+
     return { Location: location };
   } catch (error) {
     console.error('❌ S3 upload error:', error);

@@ -8,5 +8,8 @@ node_modules
 simagang.dbml
 simagang.dbdiagram
 
+# Seed script
+seed.js
+
 
 

@@ -455,5 +455,47 @@ router.post(
   authController.resetPassword
 );
 
-module.exports = router;
+// Change password (authenticated)
+router.put(
+  '/change-password',
+  auth,
+  [
+    body('currentPassword')
+      .trim()
+      .notEmpty()
+      .withMessage('Password lama harus diisi'),
+    body('newPassword')
+      .trim()
+      .notEmpty()
+      .withMessage('Password baru harus diisi')
+      .isLength({ min: 6 })
+      .withMessage('Password baru minimal 6 karakter')
+  ],
+  authController.changePassword
+);
 
+// Update profile (bank info)
+router.put(
+  '/update-profile',
+  auth,
+  [
+    body('bank_name')
+      .optional()
+      .trim()
+      .isLength({ max: 100 })
+      .withMessage('Nama bank maksimal 100 karakter'),
+    body('bank_account_number')
+      .optional()
+      .trim()
+      .isLength({ max: 50 })
+      .withMessage('Nomor rekening maksimal 50 karakter'),
+    body('bank_account_name')
+      .optional()
+      .trim()
+      .isLength({ max: 100 })
+      .withMessage('Nama pemilik rekening maksimal 100 karakter')
+  ],
+  authController.updateProfile
+);
+
+module.exports = router;

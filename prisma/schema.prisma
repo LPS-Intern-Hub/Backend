@@ -68,8 +68,14 @@ model Users {
   // Password reset fields
   reset_token         String?   @db.Text
   reset_token_expires DateTime?
+  
+  // Bank account fields
+  bank_name           String?   @db.VarChar(100)
+  bank_account_number String?   @db.VarChar(50)
+  bank_account_name   String?   @db.VarChar(100)
 
-  internships          Internships[]
+  internships          Internships[] @relation("InternUser")
+  mentored_interns     Internships[] @relation("InternMentor")
   approved_permissions Permissions[] @relation("PermissionApprover")
   approved_logbooks    Logbooks[]    @relation("LogbookApprover")
 
@@ -79,11 +85,13 @@ model Users {
 model Internships {
   id_internships String   @id @default(uuid())
   id_users       String
+  id_mentor      String?  // Mentor yang membimbing intern ini
   start_date     DateTime @db.Date
   end_date       DateTime @db.Date
   status         InternshipStatus
 
-  user        Users        @relation(fields: [id_users], references: [id_users], onDelete: Cascade)
+  user        Users        @relation("InternUser", fields: [id_users], references: [id_users], onDelete: Cascade)
+  mentor      Users?       @relation("InternMentor", fields: [id_mentor], references: [id_users], onDelete: SetNull)
   presensi    Presensi[]
   permissions Permissions[]
   logbooks    Logbooks[]
@@ -103,6 +111,7 @@ model Permissions {
   approved_by             String?
   approved_at             DateTime?
   supporting_document_url String?          @db.Text
+  rejection_reason        String?          @db.Text
 
   internship Internships @relation(fields: [id_internships], references: [id_internships], onDelete: Cascade)
   approver   Users?      @relation("PermissionApprover", fields: [approved_by], references: [id_users], onDelete: SetNull)
@@ -135,14 +144,15 @@ model Presensi {
 }
 
 model Logbooks {
-  id_logbooks     String        @id @default(uuid())
-  id_internships  String
-  date            DateTime      @db.Date
-  activity_detail String        @db.Text
-  result_output   String?       @db.Text
-  status          LogbookStatus @default(draft)
-  approved_by     String?
-  approved_at     DateTime?
+  id_logbooks      String        @id @default(uuid())
+  id_internships   String
+  date             DateTime      @db.Date
+  activity_detail  String        @db.Text
+  result_output    String?       @db.Text
+  status           LogbookStatus @default(draft)
+  approved_by      String?
+  approved_at      DateTime?
+  rejection_reason String?       @db.Text
 
   internship Internships @relation(fields: [id_internships], references: [id_internships], onDelete: Cascade)
   approver   Users?      @relation("LogbookApprover", fields: [approved_by], references: [id_users], onDelete: SetNull)

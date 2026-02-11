@@ -99,6 +99,7 @@ const { auth, authorize } = require('../middlewares/auth');
  *                   type: string
  *                   example: "Database connection failed"
  */
+router.get('/mentor', auth, authorize('mentor'), internshipController.getMentorInternships);
 router.get('/me', auth, internshipController.getMyInternship);
 
 module.exports = router;

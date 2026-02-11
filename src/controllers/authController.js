@@ -145,6 +145,9 @@ exports.getProfile = async (req, res) => {
         email: true,
         role: true,
         position: true,
+        bank_name: true,
+        bank_account_number: true,
+        bank_account_name: true,
         created_at: true,
         updated_at: true
       }
@@ -344,3 +347,84 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
+/**
+ * Change password (authenticated user)
+ * PUT /api/auth/change-password
+ */
+exports.changePassword = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+
+    const user = await prisma.users.findUnique({
+      where: { id_users: req.user.id_users }
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User tidak ditemukan' });
+    }
+
+    // Verify current password
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: 'Password lama tidak sesuai' });
+    }
+
+    // Hash and update
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await prisma.users.update({
+      where: { id_users: req.user.id_users },
+      data: {
+        password: hashedPassword,
+        token_version: { increment: 1 }
+      }
+    });
+
+    res.status(200).json({ success: true, message: 'Password berhasil diubah' });
+  } catch (error) {
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat mengubah password', error);
+  }
+};
+
+/**
+ * Update bank info
+ * PUT /api/auth/update-profile
+ */
+exports.updateProfile = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
+    const { bank_name, bank_account_number, bank_account_name } = req.body;
+
+    const updatedUser = await prisma.users.update({
+      where: { id_users: req.user.id_users },
+      data: {
+        bank_name: bank_name || null,
+        bank_account_number: bank_account_number || null,
+        bank_account_name: bank_account_name || null
+      },
+      select: {
+        id_users: true,
+        full_name: true,
+        email: true,
+        role: true,
+        position: true,
+        bank_name: true,
+        bank_account_number: true,
+        bank_account_name: true,
+        updated_at: true
+      }
+    });
+
+    res.status(200).json({ success: true, message: 'Profil berhasil diperbarui', data: updatedUser });
+  } catch (error) {
+    return sendErrorResponse(res, 500, 'Terjadi kesalahan saat memperbarui profil', error);
+  }
+};

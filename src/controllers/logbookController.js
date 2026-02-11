@@ -10,21 +10,51 @@ const { sendErrorResponse } = require('../utils/errorHandler');
 exports.getLogbooks = async (req, res) => {
   try {
     const userId = req.user.id_users;
+    const userRole = req.user.role;
     const { month, year, status, page = 1, limit = 5 } = req.query;
 
-    // Get internship first
-    const internship = await prisma.internships.findFirst({
-      where: { id_users: userId }
-    });
+    let where = {};
 
-    if (!internship) {
-      return res.status(404).json({
-        success: false,
-        message: 'Data magang tidak ditemukan'
+    // Role-based filtering
+    if (userRole === 'intern') {
+      // Intern: Get their own internship
+      const internship = await prisma.internships.findFirst({
+        where: { id_users: userId }
       });
-    }
 
-    const where = { id_internships: internship.id_internships };
+      if (!internship) {
+        return res.status(404).json({
+          success: false,
+          message: 'Data magang tidak ditemukan'
+        });
+      }
+
+      where.id_internships = internship.id_internships;
+    } else if (userRole === 'mentor' || userRole === 'kadiv') {
+      // Mentor/Kadiv: Get logbooks from interns they supervise
+      const mentoredInternships = await prisma.internships.findMany({
+        where: { id_mentor: userId },
+        select: { id_internships: true }
+      });
+
+      if (mentoredInternships.length === 0) {
+        // No interns assigned to this mentor
+        return res.status(200).json({
+          success: true,
+          data: [],
+          meta: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: 0,
+            totalPages: 0
+          }
+        });
+      }
+
+      where.id_internships = {
+        in: mentoredInternships.map(i => i.id_internships)
+      };
+    }
 
     // Filter by date if provided
     if (month && year) {
@@ -265,8 +295,8 @@ exports.updateLogbook = async (req, res) => {
       });
     }
 
-    // Only allow update if status is draft or rejected
-    if (!['draft', 'rejected'].includes(existingLogbook.status)) {
+    // Only allow update if status is draft
+    if (existingLogbook.status !== 'draft') {
       return res.status(400).json({
         success: false,
         message: 'Logbook yang sudah diajukan tidak dapat diubah. Tunggu sampai ditolak untuk melakukan revisi'
@@ -280,8 +310,10 @@ exports.updateLogbook = async (req, res) => {
     if (result_output !== undefined) updateData.result_output = result_output;
     if (status) {
       updateData.status = status;
-      // Reset approval if status changed
-      if (status === 'draft' || status === 'sent') {
+      // Reset approval and rejection data when status changes
+      if (status === 'sent') {
+        // Clear rejection when resubmitting
+        updateData.rejection_reason = null;
         updateData.approved_by = null;
         updateData.approved_at = null;
       }
@@ -377,13 +409,13 @@ exports.deleteLogbook = async (req, res) => {
 };
 
 /**
- * Review logbook (for mentor/kadiv/admin)
+ * Review logbook (for mentor/kadiv)
  * PUT /api/logbooks/:id/review
  */
 exports.reviewLogbook = async (req, res) => {
   try {
     const { id } = req.params;
-    const { action } = req.body; // 'approve' or 'reject'
+    const { action, rejection_reason } = req.body; // 'approve' or 'reject', with optional rejection_reason
     const reviewerId = req.user.id_users;
     const reviewerRole = req.user.role;
 
@@ -401,9 +433,26 @@ exports.reviewLogbook = async (req, res) => {
 
     // Determine new status based on current status and action
     let newStatus;
+    let updateData = {
+      approved_by: reviewerId,
+      approved_at: new Date()
+    };
 
     if (action === 'reject') {
-      newStatus = 'rejected';
+      // Validate rejection reason
+      if (!rejection_reason || rejection_reason.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Alasan penolakan harus diisi'
+        });
+      }
+      // When rejected, return to draft so user can edit and resubmit
+      // Clear approval data to reset the progress
+      newStatus = 'draft';
+      updateData.status = newStatus;
+      updateData.rejection_reason = rejection_reason;
+      updateData.approved_by = null;
+      updateData.approved_at = null;
     } else if (action === 'approve') {
       if (logbook.status === 'sent' && reviewerRole === 'mentor') {
         newStatus = 'review_kadiv';
@@ -417,6 +466,8 @@ exports.reviewLogbook = async (req, res) => {
           message: 'Status logbook tidak sesuai untuk direview'
         });
       }
+      updateData.status = newStatus;
+      updateData.rejection_reason = null; // Clear rejection reason on approval
     } else {
       return res.status(400).json({
         success: false,
@@ -427,11 +478,7 @@ exports.reviewLogbook = async (req, res) => {
     // Update logbook
     const updatedLogbook = await prisma.logbooks.update({
       where: { id_logbooks: id },
-      data: {
-        status: newStatus,
-        approved_by: reviewerId,
-        approved_at: new Date()
-      },
+      data: updateData,
       include: {
         internship: {
           include: {

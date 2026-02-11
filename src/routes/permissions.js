@@ -4,7 +4,7 @@ const router = express.Router();
 const { body } = require('express-validator');
 const permissionController = require('../controllers/permissionController');
 const { auth, authorize } = require('../middlewares/auth');
-const uploadPermission = require('../middlewares/uploadPermission');
+const uploadPermissionLocal = require('../middlewares/uploadPermissionLocal');
 
 /**
  * @swagger
@@ -427,7 +427,7 @@ router.get('/:id', auth, permissionController.getPermissionById);
 router.post(
   '/',
   auth,
-  uploadPermission.single('document'),
+  uploadPermissionLocal.single('document'),
   [
     body('type')
       .isIn(['sakit', 'izin'])
@@ -620,7 +620,7 @@ router.post(
 router.put(
   '/:id',
   auth,
-  uploadPermission.single('document'),
+  uploadPermissionLocal.single('document'),
   [
     body('type')
       .optional()

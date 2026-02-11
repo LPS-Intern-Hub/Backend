@@ -2,7 +2,6 @@
 const prisma = require('../utils/prisma');
 const { validationResult } = require('express-validator');
 const { sendErrorResponse } = require('../utils/errorHandler');
-const { uploadToS3, deleteFromS3 } = require('../utils/s3');
 const fs = require('fs');
 const path = require('path');
 
@@ -13,22 +12,51 @@ const path = require('path');
 exports.getPermissions = async (req, res) => {
   try {
     const userId = req.user.id_users;
+    const userRole = req.user.role;
     const { status, type, page = 1, limit = 5 } = req.query;
 
-    // Get internship first
-    const internship = await prisma.internships.findFirst({
-      where: { id_users: userId }
-    });
+    let where = {};
 
-    if (!internship) {
-      return res.status(404).json({
-        success: false,
-        message: 'Data magang tidak ditemukan'
+    // Role-based filtering
+    if (userRole === 'intern') {
+      // Intern: Get their own internship
+      const internship = await prisma.internships.findFirst({
+        where: { id_users: userId }
       });
-    }
 
-    // Build filter
-    const where = { id_internships: internship.id_internships };
+      if (!internship) {
+        return res.status(404).json({
+          success: false,
+          message: 'Data magang tidak ditemukan'
+        });
+      }
+
+      where.id_internships = internship.id_internships;
+    } else if (userRole === 'mentor' || userRole === 'kadiv') {
+      // Mentor/Kadiv: Get permissions from interns they supervise
+      const mentoredInternships = await prisma.internships.findMany({
+        where: { id_mentor: userId },
+        select: { id_internships: true }
+      });
+
+      if (mentoredInternships.length === 0) {
+        // No interns assigned to this mentor
+        return res.status(200).json({
+          success: true,
+          data: [],
+          meta: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: 0,
+            totalPages: 0
+          }
+        });
+      }
+
+      where.id_internships = {
+        in: mentoredInternships.map(i => i.id_internships)
+      };
+    }
 
     if (status) {
       where.status = status;
@@ -63,6 +91,8 @@ exports.getPermissions = async (req, res) => {
         status: true,
         approved_by: true,
         approved_at: true,
+        rejection_reason: true,
+        supporting_document_url: true,
         internship: {
           select: {
             id_internships: true,
@@ -85,9 +115,16 @@ exports.getPermissions = async (req, res) => {
       const endDate = new Date(permission.end_date);
       const durationDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
 
+      // Prepend base URL for local files
+      let attachmentUrl = permission.supporting_document_url;
+      if (attachmentUrl && attachmentUrl.startsWith('/uploads/')) {
+        attachmentUrl = `http://localhost:3000${attachmentUrl}`;
+      }
+
       return {
         ...permission,
-        duration_days: durationDays
+        duration: durationDays,
+        attachment_url: attachmentUrl
       };
     });
 
@@ -169,11 +206,18 @@ exports.getPermissionById = async (req, res) => {
     const endDate = new Date(permission.end_date);
     const durationDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
 
+    // Prepend base URL for local files
+    let attachmentUrl = permission.supporting_document_url;
+    if (attachmentUrl && attachmentUrl.startsWith('/uploads/')) {
+      attachmentUrl = `http://localhost:3000${attachmentUrl}`;
+    }
+
     res.status(200).json({
       success: true,
       data: {
         ...permission,
-        duration_days: durationDays
+        duration_days: durationDays,
+        attachment_url: attachmentUrl
       }
     });
 
@@ -191,7 +235,7 @@ exports.createPermission = async (req, res) => {
     console.log('Request body:', req.body);
     console.log('Request file:', req.file);
     console.log('Content-Type:', req.get('content-type'));
-    
+
     // Validation
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -231,24 +275,12 @@ exports.createPermission = async (req, res) => {
       });
     }
 
-    // Handle file upload to S3 if exists
+    // Handle file upload (local storage)
     let documentUrl = null;
     if (req.file) {
-      const timestamp = Date.now();
-      const fileExtension = path.extname(req.file.originalname);
-      const fileName = `permissions/${userId}-${timestamp}${fileExtension}`;
-      
-      try {
-        const uploadResult = await uploadToS3(req.file.buffer, fileName, req.file.mimetype);
-        documentUrl = uploadResult.Location;
-        console.log('File uploaded to S3:', documentUrl);
-      } catch (uploadError) {
-        console.error('S3 upload error:', uploadError);
-        return res.status(500).json({
-          success: false,
-          message: 'Gagal mengupload dokumen pendukung'
-        });
-      }
+      // File already saved by multer, just construct the URL path
+      documentUrl = `/uploads/permissions/${req.file.filename}`;
+      console.log('File saved locally:', documentUrl);
     }
 
     // Create permission
@@ -298,7 +330,7 @@ exports.updatePermission = async (req, res) => {
   try {
     console.log('Update permission - body:', req.body);
     console.log('Update permission - params:', req.params);
-    
+
     // Validation
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -308,7 +340,7 @@ exports.updatePermission = async (req, res) => {
         errors: errors.array()
       });
     }
-    
+
     const { id } = req.params;
     const userId = req.user.id_users;
     const { type, title, reason, start_date, end_date } = req.body;
@@ -356,31 +388,24 @@ exports.updatePermission = async (req, res) => {
     if (start_date !== undefined) updateData.start_date = new Date(start_date);
     if (end_date !== undefined) updateData.end_date = new Date(end_date);
 
-    // Handle file upload to S3 if new file provided
+    // Handle file upload (local storage)
     if (req.file) {
-      const timestamp = Date.now();
-      const fileExtension = path.extname(req.file.originalname);
-      const fileName = `permissions/${userId}-${timestamp}${fileExtension}`;
-      
       try {
         // Delete old file if exists
         if (existingPermission.supporting_document_url) {
-          const oldFileKey = existingPermission.supporting_document_url.split('.com/')[1];
-          if (oldFileKey) {
-            await deleteFromS3(oldFileKey);
+          const oldFilePath = path.join(__dirname, '../../', existingPermission.supporting_document_url);
+          if (fs.existsSync(oldFilePath)) {
+            fs.unlinkSync(oldFilePath);
+            console.log('Old file deleted:', oldFilePath);
           }
         }
-        
-        // Upload new file
-        const uploadResult = await uploadToS3(req.file.buffer, fileName, req.file.mimetype);
-        updateData.supporting_document_url = uploadResult.Location;
-        console.log('New file uploaded to S3:', uploadResult.Location);
-      } catch (uploadError) {
-        console.error('S3 upload error:', uploadError);
-        return res.status(500).json({
-          success: false,
-          message: 'Gagal mengupload dokumen pendukung'
-        });
+
+        // File already saved by multer, just construct the URL path
+        updateData.supporting_document_url = `/uploads/permissions/${req.file.filename}`;
+        console.log('New file saved locally:', updateData.supporting_document_url);
+      } catch (fileError) {
+        console.error('File handling error:', fileError);
+        // Continue with update even if file deletion fails
       }
     }
 
@@ -400,7 +425,7 @@ exports.updatePermission = async (req, res) => {
     updateData.status = 'pending';
     updateData.approved_by = null;
     updateData.approved_at = null;
-    
+
     console.log('Update data:', updateData);
 
     const updatedPermission = await prisma.permissions.update({
@@ -493,19 +518,19 @@ exports.deletePermission = async (req, res) => {
 };
 
 /**
- * Review permission (for mentor/kadiv/admin)
+ * Review permission (for mentor/kadiv)
  * PUT /api/permissions/:id/review
  */
 exports.reviewPermission = async (req, res) => {
   try {
     const { id } = req.params;
-    const { action } = req.body; // 'approve' or 'reject'
+    const { action, rejection_reason } = req.body; // 'approve' or 'reject', with optional rejection_reason
     const reviewerId = req.user.id_users;
     const reviewerRole = req.user.role;
 
     // Check if permission exists
     const permission = await prisma.permissions.findUnique({
-      where: { id_permissions: parseInt(id) }
+      where: { id_permissions: id } // UUID is string, not integer
     });
 
     if (!permission) {
@@ -517,12 +542,28 @@ exports.reviewPermission = async (req, res) => {
 
     // Determine new status based on action
     let newStatus;
+    let updateData = {
+      status: '',
+      approved_by: reviewerId,
+      approved_at: new Date()
+    };
 
     if (action === 'reject') {
+      // Validate rejection reason
+      if (!rejection_reason || rejection_reason.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Alasan penolakan harus diisi'
+        });
+      }
       newStatus = 'rejected';
+      updateData.status = newStatus;
+      updateData.rejection_reason = rejection_reason;
     } else if (action === 'approve') {
-      // Simplified: any reviewer (mentor/kadiv/admin) can approve directly
+      // Simplified: any reviewer (mentor/kadiv) can approve directly
       newStatus = 'approved';
+      updateData.status = newStatus;
+      updateData.rejection_reason = null; // Clear rejection reason on approval
     } else {
       return res.status(400).json({
         success: false,
@@ -532,12 +573,8 @@ exports.reviewPermission = async (req, res) => {
 
     // Update permission status
     const updatedPermission = await prisma.permissions.update({
-      where: { id_permissions: parseInt(id) },
-      data: {
-        status: newStatus,
-        approved_by: reviewerId,
-        approved_at: new Date()
-      },
+      where: { id_permissions: id }, // UUID is string, not integer
+      data: updateData,
       include: {
         internship: {
           include: {
