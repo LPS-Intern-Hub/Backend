@@ -93,6 +93,7 @@ exports.getLogbooks = async (req, res) => {
         status: true,
         approved_by: true,
         approved_at: true,
+        rejection_reason: true,
         internship: {
           select: {
             id_internships: true,
@@ -295,8 +296,8 @@ exports.updateLogbook = async (req, res) => {
       });
     }
 
-    // Only allow update if status is draft
-    if (existingLogbook.status !== 'draft') {
+    // Only allow update if status is draft or rejected
+    if (!['draft', 'rejected'].includes(existingLogbook.status)) {
       return res.status(400).json({
         success: false,
         message: 'Logbook yang sudah diajukan tidak dapat diubah. Tunggu sampai ditolak untuk melakukan revisi'
@@ -446,9 +447,8 @@ exports.reviewLogbook = async (req, res) => {
           message: 'Alasan penolakan harus diisi'
         });
       }
-      // When rejected, return to draft so user can edit and resubmit
-      // Clear approval data to reset the progress
-      newStatus = 'draft';
+      // Set status to rejected so the progress bar shows rejection state
+      newStatus = 'rejected';
       updateData.status = newStatus;
       updateData.rejection_reason = rejection_reason;
       updateData.approved_by = null;
