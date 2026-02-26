@@ -98,3 +98,69 @@ exports.getMyInternship = async (req, res) => {
         });
     }
 };
+
+/**
+ * Get all internships (Admin)
+ * GET /api/internships/admin
+ */
+exports.getAllInternships = async (req, res) => {
+    try {
+        const { status } = req.query;
+
+        const where = {};
+        if (status) {
+            where.status = status;
+        }
+
+        const internships = await prisma.internships.findMany({
+            where,
+            select: {
+                id_internships: true,
+                start_date: true,
+                end_date: true,
+                status: true,
+                user: {
+                    select: {
+                        id_users: true,
+                        full_name: true,
+                        email: true,
+                        position: true,
+                        role: true
+                    }
+                },
+                mentor: {
+                    select: {
+                        id_users: true,
+                        full_name: true,
+                        email: true,
+                        position: true
+                    }
+                },
+                _count: {
+                    select: {
+                        logbooks: true,
+                        permissions: {
+                            where: { status: 'approved' }
+                        }
+                    }
+                }
+            },
+            orderBy: {
+                start_date: 'desc'
+            }
+        });
+
+        res.status(200).json({
+            success: true,
+            data: internships
+        });
+
+    } catch (error) {
+        console.error('Get all internships error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Terjadi kesalahan saat mengambil daftar magang',
+            error: error.message
+        });
+    }
+};

@@ -123,4 +123,59 @@ exports.getDashboard = async (req, res) => {
   }
 };
 
+/**
+ * Get admin dashboard data
+ * GET /api/dashboard/admin
+ */
+exports.getAdminDashboard = async (req, res) => {
+  try {
+    // 1. Total Peserta Magang Aktif
+    const totalActiveInterns = await prisma.internships.count({
+      where: {
+        status: 'aktif'
+      }
+    });
+
+    // 2. Total Mentor
+    const totalMentors = await prisma.users.count({
+      where: {
+        role: 'mentor'
+      }
+    });
+
+    // 3. Total Logbook Pending Review
+    // Adjust based on your pending logic. Typically sent, review_mentor, review_kadiv
+    const totalPendingLogbooks = await prisma.logbooks.count({
+      where: {
+        status: {
+          in: ['sent', 'review_mentor', 'review_kadiv']
+        }
+      }
+    });
+
+    // 4. Total Izin Pending
+    const totalPendingPermissions = await prisma.permissions.count({
+      where: {
+        status: 'pending'
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        total_active_interns: totalActiveInterns,
+        total_mentors: totalMentors,
+        total_pending_logbooks: totalPendingLogbooks,
+        total_pending_permissions: totalPendingPermissions
+      }
+    });
+  } catch (error) {
+    console.error('Get admin dashboard error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Terjadi kesalahan saat mengambil statistik admin dashboard',
+      error: error.message
+    });
+  }
+};
 

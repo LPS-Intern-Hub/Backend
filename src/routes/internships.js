@@ -101,5 +101,6 @@ const { auth, authorize } = require('../middlewares/auth');
  */
 router.get('/mentor', auth, authorize('mentor'), internshipController.getMentorInternships);
 router.get('/me', auth, internshipController.getMyInternship);
+router.get('/admin', auth, authorize('admin'), internshipController.getAllInternships);
 
 module.exports = router;
