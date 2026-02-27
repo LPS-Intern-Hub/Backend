@@ -15,6 +15,10 @@ var permissionsRouter = require('./src/routes/permissions');
 var presencesRouter = require('./src/routes/presences');
 var logbooksRouter = require('./src/routes/logbooks');
 var internshipsRouter = require('./src/routes/internships');
+var announcementsRouter = require('./src/routes/announcements');
+var tasksRouter = require('./src/routes/tasks');
+var auditLogsRouter = require('./src/routes/auditLogs');
+var reportsRouter = require('./src/routes/reports');
 
 var app = express();
 
@@ -30,7 +34,7 @@ app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
-    
+
     if (allowedOrigins.indexOf(origin) === -1) {
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
       return callback(new Error(msg), false);
@@ -67,6 +71,10 @@ app.use('/api/permissions', permissionsRouter);
 app.use('/api/presences', presencesRouter);
 app.use('/api/logbooks', logbooksRouter);
 app.use('/api/internships', internshipsRouter);
+app.use('/api/announcements', announcementsRouter);
+app.use('/api/tasks', tasksRouter);
+app.use('/api/audit-logs', auditLogsRouter);
+app.use('/api/reports', reportsRouter);
 
 // Error handling middleware
 app.use((req, res, next) => {

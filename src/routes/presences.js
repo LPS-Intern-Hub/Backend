@@ -412,6 +412,9 @@ router.post(
  *                   type: string
  *                   example: "Database connection failed"
  */
+const reportController = require('../controllers/reportController');
+
+router.get('/admin', auth, authorize('admin'), reportController.getAllPresencesAdmin);
 router.get('/today', auth, presenceController.getTodayPresence);
 
 /**
