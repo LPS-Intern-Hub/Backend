@@ -86,6 +86,7 @@ model Users {
   approved_logbooks    Logbooks[]    @relation("LogbookApprover")
   assigned_tasks       Tasks[]       @relation("TaskMentor")
   announcements        Announcements[]
+  materials            Materials[]   @relation("MaterialAuthor")
   audit_logs           AuditLogs[]
 
   @@map("users")
@@ -219,3 +220,17 @@ model Announcements {
   @@map("announcements")
 }
 
+model Materials {
+  id_materials String   @id @default(uuid())
+  id_author    String
+  title        String   @db.VarChar(150)
+  description  String?  @db.Text
+  file_url     String?  @db.Text
+  link_url     String?  @db.Text
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  author       Users    @relation("MaterialAuthor", fields: [id_author], references: [id_users])
+
+  @@map("materials")
+}

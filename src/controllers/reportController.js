@@ -8,7 +8,7 @@ const xlsx = require('xlsx');
  */
 exports.getAllPresencesAdmin = async (req, res) => {
     try {
-        const { date, month, year, status, division } = req.query;
+        const { date, month, year, status, division, search } = req.query;
 
         const where = {};
 
@@ -24,6 +24,17 @@ exports.getAllPresencesAdmin = async (req, res) => {
         }
 
         if (status) where.status = status;
+
+        if (search) {
+            where.internship = {
+                user: {
+                    full_name: {
+                        contains: search,
+                        mode: 'insensitive'
+                    }
+                }
+            };
+        }
 
         const presences = await prisma.presensi.findMany({
             where,

@@ -105,11 +105,20 @@ exports.getMyInternship = async (req, res) => {
  */
 exports.getAllInternships = async (req, res) => {
     try {
-        const { status } = req.query;
+        const { status, search } = req.query;
 
         const where = {};
         if (status) {
             where.status = status;
+        }
+
+        if (search) {
+            where.user = {
+                full_name: {
+                    contains: search,
+                    mode: 'insensitive'
+                }
+            };
         }
 
         const internships = await prisma.internships.findMany({

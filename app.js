@@ -19,6 +19,8 @@ var announcementsRouter = require('./src/routes/announcements');
 var tasksRouter = require('./src/routes/tasks');
 var auditLogsRouter = require('./src/routes/auditLogs');
 var reportsRouter = require('./src/routes/reports');
+var materialsRouter = require('./src/routes/materials');
+
 
 var app = express();
 
@@ -75,6 +77,8 @@ app.use('/api/announcements', announcementsRouter);
 app.use('/api/tasks', tasksRouter);
 app.use('/api/audit-logs', auditLogsRouter);
 app.use('/api/reports', reportsRouter);
+app.use('/api/materials', materialsRouter);
+
 
 // Error handling middleware
 app.use((req, res, next) => {
